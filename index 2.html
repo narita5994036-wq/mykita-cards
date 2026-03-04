@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>MYKITA FRAME CARDS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=Noto+Sans+JP:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', 'Noto Sans JP', sans-serif; background: #fff; color: #1a1a1a; -webkit-font-smoothing: antialiased; }
+  input, select, textarea, button { font-family: 'DM Sans', 'Noto Sans JP', sans-serif; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #000 !important; }
+  button:hover { opacity: 0.85; }
+  ::placeholder { color: #bbb; }
+  @keyframes slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const INITIAL_COLLECTIONS = [
+  "LESSRIM", "LITE", "NO1", "ACETATE", "MYLON",
+  "CRAFT", "STUDIO", "DECADES", "MMRAW", "MMCRAFT",
+  "MMTRANSFER", "MMSUN", "MMESSE"
+];
+
+const SHAPES = [
+  "オーバル", "ラウンド", "ボストン", "ウェリントン", "スクエア",
+  "レクタングル", "ブロー", "キャットアイ", "ヘキサゴン", "パント",
+  "ティアドロップ", "ナビゲーター", "バタフライ", "フォックス", "その他"
+];
+
+const MAX_IMAGES = 3;
+const TAX_RATE = 0.10;
+
+function loadData(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
+function saveData(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function getFaceImg(images) {
+  if (!images || images.length === 0) return null;
+  return images.find(i => i.type === "face")?.data || images[0]?.data || null;
+}
+function migrateCards(cards) {
+  return cards.map(c => {
+    if (c.image && !c.images) return { ...c, images: [{ type: "face", data: c.image }], image: undefined };
+    if (!c.images) return { ...c, images: [] };
+    return c;
+  });
+}
+
+function App() {
+  const [cards, setCards] = useState(() => migrateCards(loadData("mykita-cards", [])));
+  const [customCollections, setCustomCollections] = useState(() => loadData("mykita-cols", []));
+  const [view, setView] = useState("home");
+  const [editingCard, setEditingCard] = useState(null);
+  const [quizState, setQuizState] = useState(null);
+  const [quizSetupMode, setQuizSetupMode] = useState(null);
+  const [filterCollection, setFilterCollection] = useState("ALL");
+  const [searchText, setSearchText] = useState("");
+  const [toast, setToast] = useState(null);
+
+  const allCollections = [...INITIAL_COLLECTIONS, ...customCollections];
+  const activeCollections = allCollections.filter(col => cards.some(c => c.collection === col));
+
+  useEffect(() => { saveData("mykita-cards", cards); }, [cards]);
+  useEffect(() => { saveData("mykita-cols", customCollections); }, [customCollections]);
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2000); };
+
+  const addCard = (card) => { setCards(p => [...p, { ...card, id: Date.now().toString() }]); showToast("登録完了"); setView("list"); };
+  const updateCard = (card) => { setCards(p => p.map(c => c.id === card.id ? card : c)); showToast("更新完了"); setEditingCard(null); setView("list"); };
+  const deleteCard = (id) => { setCards(p => p.filter(c => c.id !== id)); showToast("削除しました"); };
+  const addCollection = (name) => { if (name && !allCollections.includes(name)) setCustomCollections(p => [...p, name]); };
+
+  const filteredCards = cards.filter(c => {
+    const mc = filterCollection === "ALL" || c.collection === filterCollection;
+    const ms = !searchText || [c.name, c.reading, c.features].some(f => (f || "").toLowerCase().includes(searchText.toLowerCase()));
+    return mc && ms;
+  });
+
+  const getCardsByCollection = (col) => col === "ALL" ? cards : cards.filter(c => c.collection === col);
+
+  const openQuizSetup = (mode) => {
+    if (cards.length === 0) { showToast("カードがありません"); return; }
+    setQuizSetupMode(mode); setView("quizSetup");
+  };
+
+  const startQuiz = (mode, collection) => {
+    const pool = getCardsByCollection(collection);
+    if (pool.length === 0) { showToast("カードがありません"); return; }
+    setQuizState({ mode, collection, cards: shuffleArray(pool), index: 0, revealed: false, score: 0, total: pool.length });
+    setQuizSetupMode(null); setView("quiz");
+  };
+
+  const exportData = () => {
+    if (cards.length === 0) { showToast("エクスポートするデータがありません"); return; }
+    const data = { version: 1, exportedAt: new Date().toISOString(), cards, customCollections };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url;
+    a.download = `mykita-frames_${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); URL.revokeObjectURL(url); showToast("エクスポート完了");
+  };
+
+  const importRef = useRef(null);
+  const handleImport = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!data.cards || !Array.isArray(data.cards)) { showToast("無効なファイル形式です"); return; }
+        const migrated = migrateCards(data.cards);
+        const existingNames = new Set(cards.map(c => c.name));
+        const newCards = migrated.filter(c => !existingNames.has(c.name));
+        const dupeCount = migrated.length - newCards.length;
+        const toAdd = newCards.map(c => ({ ...c, id: Date.now().toString() + Math.random().toString(36).slice(2) }));
+        setCards(prev => [...prev, ...toAdd]);
+        if (data.customCollections) {
+          setCustomCollections(prev => {
+            const all = new Set([...prev, ...data.customCollections]);
+            return [...all].filter(c => !INITIAL_COLLECTIONS.includes(c));
+          });
+        }
+        showToast(dupeCount > 0 ? `${toAdd.length}件追加（${dupeCount}件スキップ）` : `${toAdd.length}件インポート完了`);
+      } catch { showToast("ファイルの読み込みに失敗しました"); }
+    };
+    reader.readAsText(file); e.target.value = "";
+  };
+
+  return (
+    <div style={S.app}>
+      {toast && <div style={S.toast}>{toast}</div>}
+      <input ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: "none" }} />
+      <header style={S.header}>
+        <div style={S.headerInner}>
+          <div style={S.logo} onClick={() => { setView("home"); setQuizState(null); setEditingCard(null); }}>
+            <span style={S.logoIcon}>M</span>
+            <div>
+              <div style={S.logoTitle}>MYKITA</div>
+              <div style={S.logoSub}>FRAME CARDS</div>
+            </div>
+          </div>
+          <nav style={S.nav}>
+            {[["home","HOME"],["register","REGISTER"],["list","LIST"]].map(([k,l]) => (
+              <button key={k} style={{...S.navBtn,...(view===k?S.navActive:{})}} onClick={() => { setView(k); if(k==="register") setEditingCard(null); }}>{l}</button>
+            ))}
+          </nav>
+        </div>
+      </header>
+      <main style={S.main}>
+        {view === "home" && <Home cardCount={cards.length} onNav={setView} onQuiz={openQuizSetup} onExport={exportData} onImport={() => importRef.current?.click()} />}
+        {view === "quizSetup" && quizSetupMode && <QuizSetup mode={quizSetupMode} cards={cards} activeCollections={activeCollections} onStart={(col) => startQuiz(quizSetupMode, col)} onBack={() => { setQuizSetupMode(null); setView("home"); }} />}
+        {view === "register" && <Form onSubmit={editingCard ? updateCard : addCard} initial={editingCard} allCollections={allCollections} onAddCol={addCollection} onCancel={() => { setEditingCard(null); setView("list"); }} />}
+        {view === "list" && <List cards={filteredCards} onEdit={c => { setEditingCard(c); setView("register"); }} onDelete={deleteCard} filterCollection={filterCollection} setFilterCollection={setFilterCollection} searchText={searchText} setSearchText={setSearchText} allCollections={allCollections} />}
+        {view === "quiz" && quizState && <Quiz state={quizState} setState={setQuizState} onEnd={() => { setQuizState(null); setView("home"); }} />}
+      </main>
+    </div>
+  );
+}
+
+/* ── Home ── */
+function Home({ cardCount, onNav, onQuiz, onExport, onImport }) {
+  return (
+    <div style={{ animation: "fadeIn .4s ease" }}>
+      <div style={S.hero}>
+        <div style={S.heroDeco} />
+        <h1 style={S.heroTitle}>FRAME<br/>CARDS</h1>
+        <p style={S.heroDesc}>MYKITAフレームの知識を磨く</p>
+        <div style={S.heroStat}>
+          <span style={S.heroStatNum}>{cardCount}</span>
+          <span style={S.heroStatLabel}>REGISTERED</span>
+        </div>
+      </div>
+      <div style={S.divider}><span style={S.dividerLine}/><span style={S.dividerText}>STUDY</span><span style={S.dividerLine}/></div>
+      <div style={S.modeGrid}>
+        {[
+          { key: "img2name", title: "IMAGE → NAME", desc: "画像からフレーム名を当てる" },
+          { key: "name2feat", title: "NAME → FEATURES", desc: "名前から特徴を思い出す" },
+          { key: "random", title: "RANDOM", desc: "コレクション別にランダム出題" },
+        ].map((m, i) => (
+          <button key={m.key} style={{ ...S.modeCard, animationDelay: `${i * 0.06}s` }} onClick={() => onQuiz(m.key)}>
+            <div style={S.modeNum}>{String(i + 1).padStart(2, "0")}</div>
+            <div style={S.modeTitle}>{m.title}</div>
+            <div style={S.modeDesc}>{m.desc}</div>
+            <div style={S.modeArrow}>→</div>
+          </button>
+        ))}
+        <button style={{ ...S.modeCard, animationDelay: "0.18s" }} onClick={() => onNav("list")}>
+          <div style={S.modeNum}>04</div>
+          <div style={S.modeTitle}>ALL CARDS</div>
+          <div style={S.modeDesc}>登録済みカードを確認・検索</div>
+          <div style={S.modeArrow}>→</div>
+        </button>
+      </div>
+      <button style={S.registerCta} onClick={() => onNav("register")}>
+        <span style={S.ctaPlus}>+</span> 新しいフレームを登録
+      </button>
+      <div style={{ ...S.divider, margin: "36px 0 16px" }}>
+        <span style={S.dividerLine} /><span style={S.dividerText}>DATA</span><span style={S.dividerLine} />
+      </div>
+      <div style={S.dataRow}>
+        <button style={S.dataBtn} onClick={onExport}>
+          <span style={S.dataBtnIcon}>↓</span>
+          <div><div style={S.dataBtnTitle}>EXPORT</div><div style={S.dataBtnDesc}>JSONファイルに保存</div></div>
+        </button>
+        <button style={S.dataBtn} onClick={onImport}>
+          <span style={S.dataBtnIcon}>↑</span>
+          <div><div style={S.dataBtnTitle}>IMPORT</div><div style={S.dataBtnDesc}>JSONファイルから読込</div></div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── QuizSetup ── */
+function QuizSetup({ mode, cards, activeCollections, onStart, onBack }) {
+  const modeLabels = { img2name: "IMAGE → NAME", name2feat: "NAME → FEATURES", random: "RANDOM" };
+  const countByCol = (col) => cards.filter(c => c.collection === col).length;
+  return (
+    <div style={{ animation: "fadeIn .3s ease" }}>
+      <div style={S.panelHeader}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+          <button style={S.backBtn} onClick={onBack}>←</button>
+          <h2 style={{ ...S.panelTitle, margin: 0 }}>{modeLabels[mode] || "QUIZ"}</h2>
+        </div>
+        <div style={S.panelLine} />
+      </div>
+      <div style={{ fontSize: 12, color: "#999", letterSpacing: "0.08em", marginBottom: 20 }}>コレクションを選択してください</div>
+      <button style={S.colPickBtn} onClick={() => onStart("ALL")}>
+        <div style={S.colPickInfo}><div style={S.colPickName}>ALL COLLECTIONS</div><div style={S.colPickCount}>{cards.length} cards</div></div>
+        <div style={S.colPickArrow}>→</div>
+      </button>
+      <div style={{ ...S.divider, margin: "16px 0" }}><span style={S.dividerLine}/><span style={S.dividerText}>BY COLLECTION</span><span style={S.dividerLine}/></div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        {activeCollections.map((col, i) => (
+          <button key={col} style={{ ...S.colPickBtn, animation: `slideUp .25s ease ${i * 0.03}s both` }} onClick={() => onStart(col)}>
+            <div style={S.colPickInfo}><div style={S.colPickName}>{col}</div><div style={S.colPickCount}>{countByCol(col)} cards</div></div>
+            <div style={S.colPickArrow}>→</div>
+          </button>
+        ))}
+      </div>
+      {activeCollections.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#ccc", fontSize: 12, letterSpacing: "0.12em" }}>NO CARDS REGISTERED</div>}
+    </div>
+  );
+}
+
+/* ── ImageSlots ── */
+function ImageSlots({ images, onChange }) {
+  const fileRef = useRef(null);
+  const [addingType, setAddingType] = useState(null);
+  const handleFile = (e) => {
+    const f = e.target.files[0]; if (!f || !addingType) return;
+    const r = new FileReader();
+    r.onload = ev => { onChange([...images, { type: addingType, data: ev.target.result }]); setAddingType(null); };
+    r.readAsDataURL(f); e.target.value = "";
+  };
+  const remove = (idx) => onChange(images.filter((_, i) => i !== idx));
+  const startAdd = (type) => { setAddingType(type); setTimeout(() => fileRef.current?.click(), 50); };
+  const faceImages = images.filter(i => i.type === "face");
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <label style={S.label}>IMAGES ({images.length}/{MAX_IMAGES})</label>
+      {images.length > 0 && (
+        <div style={S.imgGrid}>
+          {images.map((img, idx) => (
+            <div key={idx} style={S.imgSlot}>
+              <img src={img.data} alt="" style={S.imgSlotPreview} />
+              <div style={S.imgSlotLabel}>{img.type === "face" ? "FACE" : "DETAIL"}</div>
+              <button style={S.imgSlotRemove} onClick={() => remove(idx)}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {images.length < MAX_IMAGES && (
+        <div style={S.imgAddRow}>
+          {faceImages.length === 0 && (
+            <button style={S.imgAddBtn} onClick={() => startAdd("face")}><span style={S.imgAddPlus}>+</span><span style={S.imgAddLabel}>FACE</span><span style={S.imgAddDesc}>正面</span></button>
+          )}
+          {images.length < MAX_IMAGES && (
+            <button style={S.imgAddBtn} onClick={() => startAdd("detail")}><span style={S.imgAddPlus}>+</span><span style={S.imgAddLabel}>DETAIL</span><span style={S.imgAddDesc}>ディテール</span></button>
+          )}
+        </div>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+    </div>
+  );
+}
+
+/* ── ImageGallery ── */
+function ImageGallery({ images, maxHeight = 240, style: wrapStyle }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  if (!images || images.length === 0) return null;
+  return (
+    <div style={{ ...wrapStyle }}>
+      <img src={images[activeIdx]?.data} alt="" style={{ maxWidth: "100%", maxHeight, objectFit: "contain", display: "block", margin: "0 auto" }} />
+      {images.length > 1 && (
+        <div style={S.galleryDots}>
+          {images.map((img, i) => (
+            <button key={i} onClick={(e) => { e.stopPropagation(); setActiveIdx(i); }} style={{ ...S.galleryDot, background: i === activeIdx ? "#1a1a1a" : "#ddd" }}>
+              <span style={S.galleryDotLabel}>{img.type === "face" ? "F" : "D"}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Form ── */
+function Form({ onSubmit, initial, allCollections, onAddCol, onCancel }) {
+  const [name, setName] = useState(initial?.name || "");
+  const [reading, setReading] = useState(initial?.reading || "");
+  const [collection, setCollection] = useState(initial?.collection || allCollections[0]);
+  const [shape, setShape] = useState(initial?.shape || SHAPES[0]);
+  const [features, setFeatures] = useState(initial?.features || "");
+  const [price, setPrice] = useState(initial?.price || "");
+  const [images, setImages] = useState(initial?.images || []);
+  const [newCol, setNewCol] = useState("");
+  const [showNewCol, setShowNewCol] = useState(false);
+
+  const submit = () => {
+    if (!name.trim()) return alert("フレーム名を入力してください");
+    onSubmit({ ...(initial || {}), name: name.trim(), reading: reading.trim(), collection, shape, features: features.trim(), price: price ? Number(price) : 0, images });
+  };
+  const handleAddCol = () => {
+    if (newCol.trim()) { onAddCol(newCol.trim().toUpperCase()); setCollection(newCol.trim().toUpperCase()); setNewCol(""); setShowNewCol(false); }
+  };
+  const taxInc = price ? `¥${Math.floor(Number(price) * 1.1).toLocaleString()}` : "";
+
+  return (
+    <div style={{ animation: "slideUp .35s ease" }}>
+      <div style={S.panelHeader}>
+        <h2 style={S.panelTitle}>{initial ? "EDIT FRAME" : "REGISTER FRAME"}</h2>
+        <div style={S.panelLine} />
+      </div>
+      <ImageSlots images={images} onChange={setImages} />
+      <Field label="FRAME NAME" required><input style={S.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. HILLA" /></Field>
+      <Field label="READING / 読み"><input style={S.input} value={reading} onChange={e => setReading(e.target.value)} placeholder="e.g. ヒラ" /></Field>
+      <div style={S.row}>
+        <Field label="COLLECTION" flex>
+          <div style={{ display: "flex", gap: 6 }}>
+            <select style={{ ...S.input, flex: 1 }} value={collection} onChange={e => setCollection(e.target.value)}>
+              {allCollections.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <button style={S.addBtn} onClick={() => setShowNewCol(!showNewCol)}>+</button>
+          </div>
+          {showNewCol && (
+            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+              <input style={{ ...S.input, flex: 1 }} value={newCol} onChange={e => setNewCol(e.target.value)} placeholder="NEW COLLECTION" />
+              <button style={S.addBtn} onClick={handleAddCol}>ADD</button>
+            </div>
+          )}
+        </Field>
+        <Field label="SHAPE" flex>
+          <select style={S.input} value={shape} onChange={e => setShape(e.target.value)}>
+            {SHAPES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </Field>
+      </div>
+      <Field label="FEATURES / セールスポイント"><textarea style={S.textarea} value={features} onChange={e => setFeatures(e.target.value)} placeholder="e.g. 超軽量ステンレスシートメタル" rows={3} /></Field>
+      <Field label="PRICE (税抜)">
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>¥</span>
+          <input style={{ ...S.input, flex: 1 }} type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="45000" />
+          {taxInc && <span style={{ fontSize: 12, color: "#999", whiteSpace: "nowrap" }}>税込 {taxInc}</span>}
+        </div>
+      </Field>
+      <div style={{ display: "flex", gap: 10, marginTop: 32 }}>
+        {initial && <button style={S.btnSecondary} onClick={onCancel}>CANCEL</button>}
+        <button style={S.btnPrimary} onClick={submit}>{initial ? "UPDATE" : "REGISTER"}</button>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, required, children, flex }) {
+  return (
+    <div style={{ marginBottom: 18, ...(flex ? { flex: 1 } : {}) }}>
+      <label style={S.label}>{label}{required && <span style={{ color: "#c00", marginLeft: 3 }}>*</span>}</label>
+      {children}
+    </div>
+  );
+}
+
+/* ── List ── */
+function List({ cards, onEdit, onDelete, filterCollection, setFilterCollection, searchText, setSearchText, allCollections }) {
+  const [expanded, setExpanded] = useState(null);
+  const [delConfirm, setDelConfirm] = useState(null);
+  return (
+    <div style={{ animation: "fadeIn .35s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div><h2 style={S.panelTitle}>ALL CARDS</h2><div style={S.panelLine} /></div>
+        <span style={{ fontSize: 11, color: "#999", letterSpacing: "0.1em" }}>{cards.length} ITEMS</span>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <input style={{ ...S.input, flex: 1 }} placeholder="Search..." value={searchText} onChange={e => setSearchText(e.target.value)} />
+        <select style={{ ...S.input, width: 150 }} value={filterCollection} onChange={e => setFilterCollection(e.target.value)}>
+          <option value="ALL">ALL</option>
+          {allCollections.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+      {cards.length === 0 ? (
+        <div style={S.empty}><div style={{ fontSize: 12, color: "#ccc", letterSpacing: "0.15em" }}>NO FRAMES REGISTERED</div></div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          {cards.map((card, i) => {
+            const thumb = getFaceImg(card.images);
+            return (
+              <div key={card.id} style={{ ...S.listCard, animation: `slideUp .3s ease ${i * 0.03}s both` }} onClick={() => setExpanded(expanded === card.id ? null : card.id)}>
+                <div style={S.listTop}>
+                  {thumb && <img src={thumb} alt="" style={S.listThumb} />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={S.listName}>{card.name}</div>
+                    {card.reading && <div style={S.listReading}>{card.reading}</div>}
+                    <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                      <span style={S.tag}>{card.collection}</span>
+                      <span style={S.tag}>{card.shape}</span>
+                      {card.images?.length > 0 && <span style={S.tag}>{card.images.length} IMG</span>}
+                    </div>
+                  </div>
+                  {card.price > 0 && <div style={S.listPrice}>¥{Number(card.price).toLocaleString()}</div>}
+                </div>
+                {expanded === card.id && (
+                  <div style={S.listExpand}>
+                    {card.images?.length > 0 && <ImageGallery images={card.images} maxHeight={200} style={{ marginBottom: 14 }} />}
+                    {card.features && <div style={S.listFeatures}>{card.features}</div>}
+                    {card.price > 0 && <div style={{ fontSize: 12, color: "#999", marginBottom: 12 }}>税込 ¥{Math.floor(card.price * 1.1).toLocaleString()}</div>}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button style={S.btnSmall} onClick={e => { e.stopPropagation(); onEdit(card); }}>EDIT</button>
+                      {delConfirm === card.id ? (
+                        <React.Fragment>
+                          <span style={{ fontSize: 11, color: "#999", alignSelf: "center" }}>削除しますか？</span>
+                          <button style={{ ...S.btnSmall, background: "#c00", color: "#fff" }} onClick={e => { e.stopPropagation(); onDelete(card.id); setDelConfirm(null); }}>YES</button>
+                          <button style={S.btnSmall} onClick={e => { e.stopPropagation(); setDelConfirm(null); }}>NO</button>
+                        </React.Fragment>
+                      ) : (
+                        <button style={{ ...S.btnSmall, color: "#c00" }} onClick={e => { e.stopPropagation(); setDelConfirm(card.id); }}>DELETE</button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Quiz ── */
+function Quiz({ state, setState, onEnd }) {
+  const [answer, setAnswer] = useState("");
+  const { mode, cards: qCards, index, revealed, score, total } = state;
+  const card = qCards[index];
+
+  if (!card) return (
+    <div style={{ textAlign: "center", paddingTop: 80, animation: "fadeIn .4s ease" }}>
+      <div style={{ fontSize: 10, letterSpacing: "0.3em", color: "#bbb", marginBottom: 16 }}>COMPLETED</div>
+      <div style={{ fontSize: 56, fontWeight: 300, letterSpacing: "0.05em" }}>{score}<span style={{ fontSize: 20, color: "#ccc" }}>/{total}</span></div>
+      <div style={{ fontSize: 11, color: "#999", marginTop: 8, letterSpacing: "0.1em" }}>CORRECT ANSWERS</div>
+      <button style={{ ...S.btnPrimary, marginTop: 40, width: 200 }} onClick={onEnd}>HOME</button>
+    </div>
+  );
+
+  const pct = (index / total) * 100;
+  const reveal = () => setState(s => ({ ...s, revealed: true }));
+  const next = (correct) => { setState(s => ({ ...s, score: correct ? s.score + 1 : s.score, index: s.index + 1, revealed: false })); setAnswer(""); };
+  const faceImg = getFaceImg(card.images);
+  const hasImages = card.images?.length > 0;
+
+  return (
+    <div style={{ animation: "fadeIn .3s ease" }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={S.progressTrack}><div style={{ ...S.progressBar, width: `${pct}%` }} /></div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, fontSize: 10, color: "#999", letterSpacing: "0.12em" }}>
+          <span>{index + 1} / {total}</span>
+          <span style={S.tag}>{state.collection === "ALL" ? "ALL" : state.collection}</span>
+          <span>SCORE {score}</span>
+          <button style={S.btnSmall} onClick={onEnd}>QUIT</button>
+        </div>
+      </div>
+      <div style={S.quizCard}>
+        <div style={S.quizLabel}>
+          {mode === "img2name" ? "このフレームの名前は？" : mode === "name2feat" ? "このフレームの特徴は？" : "このフレームについて答えてください"}
+        </div>
+        {mode === "img2name" && (faceImg ? <img src={faceImg} alt="" style={S.quizImg} /> : <div style={S.quizNoImg}>NO IMAGE</div>)}
+        {mode === "name2feat" && (
+          <React.Fragment>
+            <div style={S.quizBigName}>{card.name}</div>
+            {card.reading && <div style={{ fontSize: 13, color: "#999", marginBottom: 16 }}>{card.reading}</div>}
+          </React.Fragment>
+        )}
+        {mode === "random" && !revealed && (faceImg ? <img src={faceImg} alt="" style={S.quizImg} /> : <div style={S.quizBigName}>{card.name}</div>)}
+
+        {!revealed ? (
+          <div style={{ marginTop: 24 }}>
+            <input style={{ ...S.input, textAlign: "center", marginBottom: 16 }} value={answer} onChange={e => setAnswer(e.target.value)} placeholder="答えを入力（任意）" onKeyDown={e => e.key === "Enter" && reveal()} />
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button style={S.btnPrimary} onClick={reveal}>SHOW ANSWER</button>
+              <button style={S.btnSecondary} onClick={() => next(false)}>SKIP</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 24 }}>
+            <div style={S.answerBox}>
+              {hasImages && mode !== "img2name" && <ImageGallery images={card.images} maxHeight={180} style={{ marginBottom: 16 }} />}
+              {mode === "img2name" && card.images?.filter(i => i.type === "detail").length > 0 && (
+                <ImageGallery images={card.images.filter(i => i.type === "detail")} maxHeight={140} style={{ marginBottom: 16 }} />
+              )}
+              <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: "0.1em" }}>{card.name}</div>
+              {card.reading && <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>{card.reading}</div>}
+              <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 12 }}>
+                <span style={S.tag}>{card.collection}</span>
+                <span style={S.tag}>{card.shape}</span>
+              </div>
+              {card.features && <div style={{ fontSize: 13, color: "#666", marginTop: 16, lineHeight: 1.8, borderTop: "1px solid #eee", paddingTop: 14 }}>{card.features}</div>}
+              {card.price > 0 && <div style={{ fontSize: 13, color: "#999", marginTop: 10 }}>¥{Number(card.price).toLocaleString()} (税込 ¥{Math.floor(card.price * 1.1).toLocaleString()})</div>}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button style={S.btnCorrect} onClick={() => next(true)}>CORRECT</button>
+              <button style={S.btnWrong} onClick={() => next(false)}>WRONG</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Styles ─── */
+const S = {
+  app: { minHeight: "100vh" },
+  toast: { position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: "#1a1a1a", color: "#fff", padding: "10px 32px", fontSize: 11, letterSpacing: "0.14em", zIndex: 9999, animation: "fadeIn .25s ease" },
+  header: { background: "#fff", borderBottom: "1px solid #e8e8e8", position: "sticky", top: 0, zIndex: 100 },
+  headerInner: { maxWidth: 600, margin: "0 auto", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" },
+  logo: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer" },
+  logoIcon: { fontSize: 16, fontWeight: 600, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #1a1a1a" },
+  logoTitle: { fontSize: 14, fontWeight: 600, letterSpacing: "0.28em", lineHeight: 1 },
+  logoSub: { fontSize: 7, letterSpacing: "0.3em", color: "#aaa", marginTop: 3 },
+  nav: { display: "flex", gap: 2 },
+  navBtn: { background: "none", border: "none", padding: "7px 11px", fontSize: 10, letterSpacing: "0.14em", cursor: "pointer", color: "#aaa", fontWeight: 500, transition: "all .2s" },
+  navActive: { color: "#1a1a1a", borderBottom: "1.5px solid #1a1a1a" },
+  main: { maxWidth: 600, margin: "0 auto", padding: "24px 20px 100px" },
+  hero: { textAlign: "center", padding: "44px 0 32px", position: "relative" },
+  heroDeco: { width: 1, height: 36, background: "#ddd", margin: "0 auto 20px" },
+  heroTitle: { fontSize: 36, fontWeight: 300, letterSpacing: "0.22em", lineHeight: 1.15, margin: 0 },
+  heroDesc: { fontSize: 12, color: "#aaa", marginTop: 12, letterSpacing: "0.12em" },
+  heroStat: { display: "inline-flex", flexDirection: "column", alignItems: "center", marginTop: 28, padding: "14px 40px", border: "1px solid #e8e8e8" },
+  heroStatNum: { fontSize: 34, fontWeight: 300, letterSpacing: "0.05em" },
+  heroStatLabel: { fontSize: 8, letterSpacing: "0.28em", color: "#bbb", marginTop: 4 },
+  divider: { display: "flex", alignItems: "center", gap: 20, margin: "36px 0 20px" },
+  dividerLine: { flex: 1, height: 1, background: "#e8e8e8" },
+  dividerText: { fontSize: 9, letterSpacing: "0.28em", color: "#bbb", fontWeight: 500 },
+  modeGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: "#e8e8e8", border: "1px solid #e8e8e8" },
+  modeCard: { background: "#fff", padding: "22px 18px", textAlign: "left", cursor: "pointer", fontFamily: "inherit", transition: "all .2s", position: "relative", animation: "slideUp .35s ease both", border: "none" },
+  modeNum: { fontSize: 9, color: "#ccc", letterSpacing: "0.2em", marginBottom: 10, fontWeight: 500 },
+  modeTitle: { fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", marginBottom: 6 },
+  modeDesc: { fontSize: 11, color: "#999", lineHeight: 1.6 },
+  modeArrow: { position: "absolute", bottom: 16, right: 18, fontSize: 14, color: "#ddd", fontWeight: 300 },
+  registerCta: { width: "100%", padding: 16, marginTop: 20, background: "#1a1a1a", color: "#fff", border: "none", fontSize: 11, letterSpacing: "0.14em", fontWeight: 500, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 },
+  ctaPlus: { fontSize: 16, fontWeight: 300 },
+  backBtn: { background: "none", border: "1px solid #e0e0e0", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14, fontFamily: "inherit", color: "#999" },
+  colPickBtn: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", background: "#fff", border: "none", borderBottom: "1px solid #f0f0f0", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all .15s" },
+  colPickInfo: { flex: 1 },
+  colPickName: { fontSize: 12, fontWeight: 600, letterSpacing: "0.1em" },
+  colPickCount: { fontSize: 11, color: "#aaa", letterSpacing: "0.08em", marginTop: 3 },
+  colPickArrow: { fontSize: 14, color: "#ddd", fontWeight: 300 },
+  dataRow: { display: "flex", gap: 1, background: "#e8e8e8", border: "1px solid #e8e8e8" },
+  dataBtn: { flex: 1, display: "flex", alignItems: "center", gap: 12, padding: "16px 18px", background: "#fff", border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all .15s" },
+  dataBtnIcon: { fontSize: 16, fontWeight: 300, color: "#999", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #e8e8e8" },
+  dataBtnTitle: { fontSize: 11, fontWeight: 600, letterSpacing: "0.12em" },
+  dataBtnDesc: { fontSize: 10, color: "#aaa", marginTop: 2 },
+  panelHeader: { marginBottom: 28 },
+  panelTitle: { fontSize: 13, fontWeight: 600, letterSpacing: "0.22em", margin: 0 },
+  panelLine: { width: 24, height: 1.5, background: "#1a1a1a", marginTop: 8 },
+  imgGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 },
+  imgSlot: { position: "relative", border: "1px solid #e8e8e8", overflow: "hidden" },
+  imgSlotPreview: { width: "100%", height: 100, objectFit: "cover", display: "block" },
+  imgSlotLabel: { fontSize: 8, letterSpacing: "0.18em", color: "#999", fontWeight: 600, textAlign: "center", padding: "5px 0", borderTop: "1px solid #eee" },
+  imgSlotRemove: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,.5)", color: "#fff", border: "none", width: 20, height: 20, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 },
+  imgAddRow: { display: "flex", gap: 8 },
+  imgAddBtn: { flex: 1, padding: "18px 12px", border: "1px dashed #ddd", background: "#fafafa", cursor: "pointer", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 },
+  imgAddPlus: { fontSize: 18, fontWeight: 300, color: "#ccc", lineHeight: 1 },
+  imgAddLabel: { fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", color: "#999" },
+  imgAddDesc: { fontSize: 10, color: "#bbb" },
+  galleryDots: { display: "flex", justifyContent: "center", gap: 6, marginTop: 10 },
+  galleryDot: { width: 22, height: 22, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "all .2s" },
+  galleryDotLabel: { fontSize: 8, fontWeight: 600, letterSpacing: "0.05em", color: "#fff" },
+  label: { display: "block", fontSize: 9, fontWeight: 600, letterSpacing: "0.18em", color: "#999", marginBottom: 6 },
+  input: { width: "100%", padding: "10px 12px", border: "1px solid #e0e0e0", fontSize: 13, fontFamily: "inherit", background: "#fff", color: "#1a1a1a", boxSizing: "border-box", letterSpacing: "0.02em" },
+  textarea: { width: "100%", padding: "10px 12px", border: "1px solid #e0e0e0", fontSize: 13, fontFamily: "inherit", background: "#fff", color: "#1a1a1a", resize: "vertical", boxSizing: "border-box" },
+  row: { display: "flex", gap: 12 },
+  addBtn: { padding: "8px 14px", background: "#fff", border: "1px solid #e0e0e0", cursor: "pointer", fontSize: 14, fontFamily: "inherit", fontWeight: 300 },
+  btnPrimary: { flex: 1, padding: "13px 24px", background: "#1a1a1a", color: "#fff", border: "none", fontSize: 10, fontWeight: 500, letterSpacing: "0.16em", cursor: "pointer", fontFamily: "inherit" },
+  btnSecondary: { padding: "13px 24px", background: "#fff", color: "#1a1a1a", border: "1px solid #e0e0e0", fontSize: 10, fontWeight: 500, letterSpacing: "0.16em", cursor: "pointer", fontFamily: "inherit" },
+  btnSmall: { padding: "5px 14px", background: "#f5f5f5", border: "none", fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", fontFamily: "inherit" },
+  btnCorrect: { flex: 1, padding: "14px", background: "#1a1a1a", color: "#fff", border: "none", fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", cursor: "pointer", fontFamily: "inherit" },
+  btnWrong: { flex: 1, padding: "14px", background: "#fff", color: "#1a1a1a", border: "1px solid #e0e0e0", fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", cursor: "pointer", fontFamily: "inherit" },
+  empty: { textAlign: "center", padding: 60 },
+  listCard: { background: "#fff", padding: 16, cursor: "pointer", transition: "all .15s", borderBottom: "1px solid #f0f0f0" },
+  listTop: { display: "flex", alignItems: "center", gap: 14 },
+  listThumb: { width: 50, height: 50, objectFit: "cover", flexShrink: 0 },
+  listName: { fontSize: 13, fontWeight: 600, letterSpacing: "0.06em" },
+  listReading: { fontSize: 11, color: "#aaa", marginTop: 2 },
+  tag: { fontSize: 9, padding: "3px 8px", background: "#f7f7f7", letterSpacing: "0.08em", color: "#999", fontWeight: 500 },
+  listPrice: { fontSize: 12, fontWeight: 500, color: "#aaa", whiteSpace: "nowrap", letterSpacing: "0.03em" },
+  listExpand: { marginTop: 14, paddingTop: 14, borderTop: "1px solid #f0f0f0" },
+  listFeatures: { fontSize: 12, lineHeight: 1.8, color: "#777", marginBottom: 8 },
+  progressTrack: { height: 1.5, background: "#eee" },
+  progressBar: { height: "100%", background: "#1a1a1a", transition: "width .4s ease" },
+  quizCard: { background: "#fff", border: "1px solid #e8e8e8", padding: 32, textAlign: "center" },
+  quizLabel: { fontSize: 12, color: "#aaa", letterSpacing: "0.1em", marginBottom: 24 },
+  quizImg: { maxWidth: "100%", maxHeight: 240, objectFit: "contain", marginBottom: 16 },
+  quizNoImg: { width: "100%", height: 160, background: "#fafafa", border: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "center", color: "#ccc", fontSize: 10, letterSpacing: "0.18em", marginBottom: 16 },
+  quizBigName: { fontSize: 28, fontWeight: 300, letterSpacing: "0.14em", marginBottom: 8 },
+  answerBox: { background: "#fafafa", border: "1px solid #eee", padding: 24 },
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
