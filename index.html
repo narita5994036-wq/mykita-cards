@@ -19,13 +19,13 @@
   @keyframes slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
   @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 </style>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel">
+<script type="text/babel" data-presets="env,react">
 const { useState, useEffect, useRef } = React;
 
 const INITIAL_COLLECTIONS = [
@@ -44,10 +44,10 @@ const MAX_IMAGES = 3;
 const TAX_RATE = 0.10;
 
 function loadData(key, fallback) {
-try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e) { return fallback; }
 }
 function saveData(key, value) {
-try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) {}
 }
 function shuffleArray(arr) {
 const a = […arr];
@@ -56,7 +56,8 @@ return a;
 }
 function getFaceImg(images) {
 if (!images || images.length === 0) return null;
-return images.find(i => i.type === “face”)?.data || images[0]?.data || null;
+var found = images.find(function(i) { return i.type === “face”; });
+return (found && found.data) || (images[0] && images[0].data) || null;
 }
 function migrateCards(cards) {
 return cards.map(c => {
@@ -141,7 +142,7 @@ return […all].filter(c => !INITIAL_COLLECTIONS.includes(c));
 });
 }
 showToast(dupeCount > 0 ? `${toAdd.length}件追加（${dupeCount}件スキップ）` : `${toAdd.length}件インポート完了`);
-} catch { showToast(“ファイルの読み込みに失敗しました”); }
+} catch(e) { showToast(“ファイルの読み込みに失敗しました”); }
 };
 reader.readAsText(file); e.target.value = “”;
 };
@@ -167,7 +168,7 @@ return (
 </div>
 </header>
 <main style={S.main}>
-{view === “home” && <Home cardCount={cards.length} onNav={setView} onQuiz={openQuizSetup} onExport={exportData} onImport={() => importRef.current?.click()} />}
+{view === “home” && <Home cardCount={cards.length} onNav={setView} onQuiz={openQuizSetup} onExport={exportData} onImport={() => importRef.current && importRef.current.click()} />}
 {view === “quizSetup” && quizSetupMode && <QuizSetup mode={quizSetupMode} cards={cards} activeCollections={activeCollections} onStart={(col) => startQuiz(quizSetupMode, col)} onBack={() => { setQuizSetupMode(null); setView(“home”); }} />}
 {view === “register” && <Form onSubmit={editingCard ? updateCard : addCard} initial={editingCard} allCollections={allCollections} onAddCol={addCollection} onCancel={() => { setEditingCard(null); setView(“list”); }} />}
 {view === “list” && <List cards={filteredCards} onEdit={c => { setEditingCard(c); setView(“register”); }} onDelete={deleteCard} filterCollection={filterCollection} setFilterCollection={setFilterCollection} searchText={searchText} setSearchText={setSearchText} allCollections={allCollections} />}
@@ -274,7 +275,7 @@ r.onload = ev => { onChange([…images, { type: addingType, data: ev.target.resu
 r.readAsDataURL(f); e.target.value = “”;
 };
 const remove = (idx) => onChange(images.filter((_, i) => i !== idx));
-const startAdd = (type) => { setAddingType(type); setTimeout(() => fileRef.current?.click(), 50); };
+const startAdd = (type) => { setAddingType(type); setTimeout(() => { if (fileRef.current) fileRef.current.click(); }, 50); };
 const faceImages = images.filter(i => i.type === “face”);
 return (
 <div style={{ marginBottom: 28 }}>
@@ -311,7 +312,7 @@ const [activeIdx, setActiveIdx] = useState(0);
 if (!images || images.length === 0) return null;
 return (
 <div style={{ …wrapStyle }}>
-<img src={images[activeIdx]?.data} alt=”” style={{ maxWidth: “100%”, maxHeight, objectFit: “contain”, display: “block”, margin: “0 auto” }} />
+<img src={images[activeIdx] && images[activeIdx].data} alt=”” style={{ maxWidth: “100%”, maxHeight, objectFit: “contain”, display: “block”, margin: “0 auto” }} />
 {images.length > 1 && (
 <div style={S.galleryDots}>
 {images.map((img, i) => (
@@ -327,13 +328,13 @@ return (
 
 /* ── Form ── */
 function Form({ onSubmit, initial, allCollections, onAddCol, onCancel }) {
-const [name, setName] = useState(initial?.name || “”);
-const [reading, setReading] = useState(initial?.reading || “”);
-const [collection, setCollection] = useState(initial?.collection || allCollections[0]);
-const [shape, setShape] = useState(initial?.shape || SHAPES[0]);
-const [features, setFeatures] = useState(initial?.features || “”);
-const [price, setPrice] = useState(initial?.price || “”);
-const [images, setImages] = useState(initial?.images || []);
+const [name, setName] = useState((initial && initial.name) || “”);
+const [reading, setReading] = useState((initial && initial.reading) || “”);
+const [collection, setCollection] = useState((initial && initial.collection) || allCollections[0]);
+const [shape, setShape] = useState((initial && initial.shape) || SHAPES[0]);
+const [features, setFeatures] = useState((initial && initial.features) || “”);
+const [price, setPrice] = useState((initial && initial.price) || “”);
+const [images, setImages] = useState((initial && initial.images) || []);
 const [newCol, setNewCol] = useState(””);
 const [showNewCol, setShowNewCol] = useState(false);
 
@@ -434,14 +435,14 @@ return (
 <div style={{ display: “flex”, gap: 6, marginTop: 6, flexWrap: “wrap” }}>
 <span style={S.tag}>{card.collection}</span>
 <span style={S.tag}>{card.shape}</span>
-{card.images?.length > 0 && <span style={S.tag}>{card.images.length} IMG</span>}
+{card.images && card.images.length > 0 && <span style={S.tag}>{card.images.length} IMG</span>}
 </div>
 </div>
 {card.price > 0 && <div style={S.listPrice}>¥{Number(card.price).toLocaleString()}</div>}
 </div>
 {expanded === card.id && (
 <div style={S.listExpand}>
-{card.images?.length > 0 && <ImageGallery images={card.images} maxHeight={200} style={{ marginBottom: 14 }} />}
+{card.images && card.images.length > 0 && <ImageGallery images={card.images} maxHeight={200} style={{ marginBottom: 14 }} />}
 {card.features && <div style={S.listFeatures}>{card.features}</div>}
 {card.price > 0 && <div style={{ fontSize: 12, color: “#999”, marginBottom: 12 }}>税込 ¥{Math.floor(card.price * 1.1).toLocaleString()}</div>}
 <div style={{ display: “flex”, gap: 8 }}>
@@ -486,7 +487,7 @@ const pct = (index / total) * 100;
 const reveal = () => setState(s => ({ …s, revealed: true }));
 const next = (correct) => { setState(s => ({ …s, score: correct ? s.score + 1 : s.score, index: s.index + 1, revealed: false })); setAnswer(””); };
 const faceImg = getFaceImg(card.images);
-const hasImages = card.images?.length > 0;
+const hasImages = card.images && card.images.length > 0;
 
 return (
 <div style={{ animation: “fadeIn .3s ease” }}>
@@ -525,7 +526,7 @@ return (
       <div style={{ marginTop: 24 }}>
         <div style={S.answerBox}>
           {hasImages && mode !== "img2name" && <ImageGallery images={card.images} maxHeight={180} style={{ marginBottom: 16 }} />}
-          {mode === "img2name" && card.images?.filter(i => i.type === "detail").length > 0 && (
+          {mode === "img2name" && card.images && card.images.filter(i => i.type === "detail").length > 0 && (
             <ImageGallery images={card.images.filter(i => i.type === "detail")} maxHeight={140} style={{ marginBottom: 16 }} />
           )}
           <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: "0.1em" }}>{card.name}</div>
