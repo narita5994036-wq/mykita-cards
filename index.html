@@ -16,7 +16,6 @@
   ::placeholder{color:#bbb}
   @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-  .err-box{padding:40px 20px;text-align:center;font-size:13px;color:#c00;word-break:break-all}
 </style>
 </head>
 <body>
@@ -26,6 +25,11 @@
 <script>
 window.onerror=function(msg,src,line){document.getElementById("status").innerHTML="<b style='color:red'>Error:</b><br>"+msg+"<br>Line:"+line;return true};
 if(typeof React==="undefined"){document.getElementById("status").innerHTML="<b style='color:red'>React not loaded</b>"}else{try{
+const {
+  useState,
+  useEffect,
+  useRef
+} = React;
 const INITIAL_COLLECTIONS = ["LESSRIM", "LITE", "NO1", "ACETATE", "MYLON", "CRAFT", "STUDIO", "DECADES", "MMRAW", "MMCRAFT", "MMTRANSFER", "MMSUN", "MMESSE"];
 const SHAPE_DATA = {
   "オーバル": {
