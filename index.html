@@ -17,296 +17,305 @@
   ::placeholder { color: #bbb; }
   @keyframes slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
   @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-  .err-box { padding: 40px 20px; text-align: center; font-size: 13px; color: #c00; word-break: break-all; }
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+<div id="root"><p id="status" style="padding:40px 20px;text-align:center;font-size:13px;color:#aaa;">Loading...</p></div>
 <script>
+// Step 1: Global error handler
 window.onerror = function(msg, src, line, col, err) {
-  var el = document.getElementById("root");
-  el.innerHTML = '<div class="err-box"><p>Error:</p><p>' + msg + '</p><p>Line: ' + line + '</p></div>';
+  document.getElementById("status").innerHTML = "<b style='color:red'>Error:</b><br>" + msg + "<br>Line:" + line + "<br>Source:" + (src||"").slice(-60);
   return true;
 };
-if (typeof React === "undefined") {
-  document.getElementById("root").innerHTML = '<div class="err-box">React CDN failed to load. Check your network.</div>';
-} else {
-  try {
+document.getElementById("status").textContent = "Step 1 OK: Script running";
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"
+  onerror="document.getElementById('status').innerHTML='<b style=color:red>React CDN failed</b>'"
+></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"
+  onerror="document.getElementById('status').innerHTML='<b style=color:red>ReactDOM CDN failed</b>'"
+></script>
+<script>
+if(typeof React==="undefined"){document.getElementById("status").innerHTML="<b style='color:red'>React not loaded</b>";}
+else if(typeof ReactDOM==="undefined"){document.getElementById("status").innerHTML="<b style='color:red'>ReactDOM not loaded</b>";}
+else{document.getElementById("status").textContent="Step 2 OK: React loaded";}
+</script>
+<script>
+
+function startApp() {
 const {
-  useState,
-  useEffect,
-  useRef
+useState,
+useEffect,
+useRef
 } = React;
-const INITIAL_COLLECTIONS = ["LESSRIM", "LITE", "NO1", "ACETATE", "MYLON", "CRAFT", "STUDIO", "DECADES", "MMRAW", "MMCRAFT", "MMTRANSFER", "MMSUN", "MMESSE"];
-const SHAPES = ["オーバル", "ラウンド", "ボストン", "ウェリントン", "スクエア", "レクタングル", "ブロー", "キャットアイ", "ヘキサゴン", "パント", "ティアドロップ", "ナビゲーター", "バタフライ", "フォックス", "その他"];
+const INITIAL_COLLECTIONS = [“LESSRIM”, “LITE”, “NO1”, “ACETATE”, “MYLON”, “CRAFT”, “STUDIO”, “DECADES”, “MMRAW”, “MMCRAFT”, “MMTRANSFER”, “MMSUN”, “MMESSE”];
+const SHAPES = [“オーバル”, “ラウンド”, “ボストン”, “ウェリントン”, “スクエア”, “レクタングル”, “ブロー”, “キャットアイ”, “ヘキサゴン”, “パント”, “ティアドロップ”, “ナビゲーター”, “バタフライ”, “フォックス”, “その他”];
 const MAX_IMAGES = 3;
 const TAX_RATE = 0.10;
 function loadData(key, fallback) {
-  try {
-    const v = localStorage.getItem(key);
-    return v ? JSON.parse(v) : fallback;
-  } catch (e) {
-    return fallback;
-  }
+try {
+const v = localStorage.getItem(key);
+return v ? JSON.parse(v) : fallback;
+} catch (e) {
+return fallback;
+}
 }
 function saveData(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {}
+try {
+localStorage.setItem(key, JSON.stringify(value));
+} catch (e) {}
 }
 function shuffleArray(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+const a = […arr];
+for (let i = a.length - 1; i > 0; i–) {
+const j = Math.floor(Math.random() * (i + 1));
+[a[i], a[j]] = [a[j], a[i]];
+}
+return a;
 }
 function getFaceImg(images) {
-  if (!images || images.length === 0) return null;
-  var found = images.find(function (i) {
-    return i.type === "face";
-  });
-  return found && found.data || images[0] && images[0].data || null;
+if (!images || images.length === 0) return null;
+var found = images.find(function (i) {
+return i.type === “face”;
+});
+return found && found.data || images[0] && images[0].data || null;
 }
 function migrateCards(cards) {
-  return cards.map(c => {
-    if (c.image && !c.images) return {
-      ...c,
-      images: [{
-        type: "face",
-        data: c.image
-      }],
-      image: undefined
-    };
-    if (!c.images) return {
-      ...c,
-      images: []
-    };
-    return c;
-  });
+return cards.map(c => {
+if (c.image && !c.images) return {
+…c,
+images: [{
+type: “face”,
+data: c.image
+}],
+image: undefined
+};
+if (!c.images) return {
+…c,
+images: []
+};
+return c;
+});
 }
 function App() {
-  const [cards, setCards] = useState(() => migrateCards(loadData("mykita-cards", [])));
-  const [customCollections, setCustomCollections] = useState(() => loadData("mykita-cols", []));
-  const [view, setView] = useState("home");
-  const [editingCard, setEditingCard] = useState(null);
-  const [quizState, setQuizState] = useState(null);
-  const [quizSetupMode, setQuizSetupMode] = useState(null);
-  const [filterCollection, setFilterCollection] = useState("ALL");
-  const [searchText, setSearchText] = useState("");
-  const [toast, setToast] = useState(null);
-  const allCollections = [...INITIAL_COLLECTIONS, ...customCollections];
-  const activeCollections = allCollections.filter(col => cards.some(c => c.collection === col));
-  useEffect(() => {
-    saveData("mykita-cards", cards);
-  }, [cards]);
-  useEffect(() => {
-    saveData("mykita-cols", customCollections);
-  }, [customCollections]);
-  const showToast = msg => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2000);
-  };
-  const addCard = card => {
-    setCards(p => [...p, {
-      ...card,
-      id: Date.now().toString()
-    }]);
-    showToast("登録完了");
-    setView("list");
-  };
-  const updateCard = card => {
-    setCards(p => p.map(c => c.id === card.id ? card : c));
-    showToast("更新完了");
-    setEditingCard(null);
-    setView("list");
-  };
-  const deleteCard = id => {
-    setCards(p => p.filter(c => c.id !== id));
-    showToast("削除しました");
-  };
-  const addCollection = name => {
-    if (name && !allCollections.includes(name)) setCustomCollections(p => [...p, name]);
-  };
-  const filteredCards = cards.filter(c => {
-    const mc = filterCollection === "ALL" || c.collection === filterCollection;
-    const ms = !searchText || [c.name, c.reading, c.features].some(f => (f || "").toLowerCase().includes(searchText.toLowerCase()));
-    return mc && ms;
-  });
-  const getCardsByCollection = col => col === "ALL" ? cards : cards.filter(c => c.collection === col);
-  const openQuizSetup = mode => {
-    if (cards.length === 0) {
-      showToast("カードがありません");
-      return;
-    }
-    setQuizSetupMode(mode);
-    setView("quizSetup");
-  };
-  const startQuiz = (mode, collection) => {
-    const pool = getCardsByCollection(collection);
-    if (pool.length === 0) {
-      showToast("カードがありません");
-      return;
-    }
-    setQuizState({
-      mode,
-      collection,
-      cards: shuffleArray(pool),
-      index: 0,
-      revealed: false,
-      score: 0,
-      total: pool.length
-    });
-    setQuizSetupMode(null);
-    setView("quiz");
-  };
-  const exportData = () => {
-    if (cards.length === 0) {
-      showToast("エクスポートするデータがありません");
-      return;
-    }
-    const data = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      cards,
-      customCollections
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json"
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `mykita-frames_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast("エクスポート完了");
-  };
-  const importRef = useRef(null);
-  const handleImport = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        if (!data.cards || !Array.isArray(data.cards)) {
-          showToast("無効なファイル形式です");
-          return;
-        }
-        const migrated = migrateCards(data.cards);
-        const existingNames = new Set(cards.map(c => c.name));
-        const newCards = migrated.filter(c => !existingNames.has(c.name));
-        const dupeCount = migrated.length - newCards.length;
-        const toAdd = newCards.map(c => ({
-          ...c,
-          id: Date.now().toString() + Math.random().toString(36).slice(2)
-        }));
-        setCards(prev => [...prev, ...toAdd]);
-        if (data.customCollections) {
-          setCustomCollections(prev => {
-            const all = new Set([...prev, ...data.customCollections]);
-            return [...all].filter(c => !INITIAL_COLLECTIONS.includes(c));
-          });
-        }
-        showToast(dupeCount > 0 ? `${toAdd.length}件追加（${dupeCount}件スキップ）` : `${toAdd.length}件インポート完了`);
-      } catch (e) {
-        showToast("ファイルの読み込みに失敗しました");
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    style: S.app
-  }, toast && /*#__PURE__*/React.createElement("div", {
-    style: S.toast
-  }, toast), /*#__PURE__*/React.createElement("input", {
-    ref: importRef,
-    type: "file",
-    accept: ".json",
-    onChange: handleImport,
-    style: {
-      display: "none"
-    }
-  }), /*#__PURE__*/React.createElement("header", {
-    style: S.header
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.headerInner
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.logo,
-    onClick: () => {
-      setView("home");
-      setQuizState(null);
-      setEditingCard(null);
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.logoIcon
-  }, "M"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: S.logoTitle
-  }, "MYKITA"), /*#__PURE__*/React.createElement("div", {
-    style: S.logoSub
-  }, "FRAME CARDS"))), /*#__PURE__*/React.createElement("nav", {
-    style: S.nav
-  }, [["home", "HOME"], ["register", "REGISTER"], ["list", "LIST"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
-    key: k,
-    style: {
-      ...S.navBtn,
-      ...(view === k ? S.navActive : {})
-    },
-    onClick: () => {
-      setView(k);
-      if (k === "register") setEditingCard(null);
-    }
-  }, l))))), /*#__PURE__*/React.createElement("main", {
-    style: S.main
-  }, view === "home" && /*#__PURE__*/React.createElement(Home, {
-    cardCount: cards.length,
-    onNav: setView,
-    onQuiz: openQuizSetup,
-    onExport: exportData,
-    onImport: () => importRef.current && importRef.current.click()
-  }), view === "quizSetup" && quizSetupMode && /*#__PURE__*/React.createElement(QuizSetup, {
-    mode: quizSetupMode,
-    cards: cards,
-    activeCollections: activeCollections,
-    onStart: col => startQuiz(quizSetupMode, col),
-    onBack: () => {
-      setQuizSetupMode(null);
-      setView("home");
-    }
-  }), view === "register" && /*#__PURE__*/React.createElement(Form, {
-    onSubmit: editingCard ? updateCard : addCard,
-    initial: editingCard,
-    allCollections: allCollections,
-    onAddCol: addCollection,
-    onCancel: () => {
-      setEditingCard(null);
-      setView("list");
-    }
-  }), view === "list" && /*#__PURE__*/React.createElement(List, {
-    cards: filteredCards,
-    onEdit: c => {
-      setEditingCard(c);
-      setView("register");
-    },
-    onDelete: deleteCard,
-    filterCollection: filterCollection,
-    setFilterCollection: setFilterCollection,
-    searchText: searchText,
-    setSearchText: setSearchText,
-    allCollections: allCollections
-  }), view === "quiz" && quizState && /*#__PURE__*/React.createElement(Quiz, {
-    state: quizState,
-    setState: setQuizState,
-    onEnd: () => {
-      setQuizState(null);
-      setView("home");
-    }
-  })));
+const [cards, setCards] = useState(() => migrateCards(loadData(“mykita-cards”, [])));
+const [customCollections, setCustomCollections] = useState(() => loadData(“mykita-cols”, []));
+const [view, setView] = useState(“home”);
+const [editingCard, setEditingCard] = useState(null);
+const [quizState, setQuizState] = useState(null);
+const [quizSetupMode, setQuizSetupMode] = useState(null);
+const [filterCollection, setFilterCollection] = useState(“ALL”);
+const [searchText, setSearchText] = useState(””);
+const [toast, setToast] = useState(null);
+const allCollections = […INITIAL_COLLECTIONS, …customCollections];
+const activeCollections = allCollections.filter(col => cards.some(c => c.collection === col));
+useEffect(() => {
+saveData(“mykita-cards”, cards);
+}, [cards]);
+useEffect(() => {
+saveData(“mykita-cols”, customCollections);
+}, [customCollections]);
+const showToast = msg => {
+setToast(msg);
+setTimeout(() => setToast(null), 2000);
+};
+const addCard = card => {
+setCards(p => […p, {
+…card,
+id: Date.now().toString()
+}]);
+showToast(“登録完了”);
+setView(“list”);
+};
+const updateCard = card => {
+setCards(p => p.map(c => c.id === card.id ? card : c));
+showToast(“更新完了”);
+setEditingCard(null);
+setView(“list”);
+};
+const deleteCard = id => {
+setCards(p => p.filter(c => c.id !== id));
+showToast(“削除しました”);
+};
+const addCollection = name => {
+if (name && !allCollections.includes(name)) setCustomCollections(p => […p, name]);
+};
+const filteredCards = cards.filter(c => {
+const mc = filterCollection === “ALL” || c.collection === filterCollection;
+const ms = !searchText || [c.name, c.reading, c.features].some(f => (f || “”).toLowerCase().includes(searchText.toLowerCase()));
+return mc && ms;
+});
+const getCardsByCollection = col => col === “ALL” ? cards : cards.filter(c => c.collection === col);
+const openQuizSetup = mode => {
+if (cards.length === 0) {
+showToast(“カードがありません”);
+return;
+}
+setQuizSetupMode(mode);
+setView(“quizSetup”);
+};
+const startQuiz = (mode, collection) => {
+const pool = getCardsByCollection(collection);
+if (pool.length === 0) {
+showToast(“カードがありません”);
+return;
+}
+setQuizState({
+mode,
+collection,
+cards: shuffleArray(pool),
+index: 0,
+revealed: false,
+score: 0,
+total: pool.length
+});
+setQuizSetupMode(null);
+setView(“quiz”);
+};
+const exportData = () => {
+if (cards.length === 0) {
+showToast(“エクスポートするデータがありません”);
+return;
+}
+const data = {
+version: 1,
+exportedAt: new Date().toISOString(),
+cards,
+customCollections
+};
+const blob = new Blob([JSON.stringify(data, null, 2)], {
+type: “application/json”
+});
+const url = URL.createObjectURL(blob);
+const a = document.createElement(“a”);
+a.href = url;
+a.download = `mykita-frames_${new Date().toISOString().slice(0, 10)}.json`;
+a.click();
+URL.revokeObjectURL(url);
+showToast(“エクスポート完了”);
+};
+const importRef = useRef(null);
+const handleImport = e => {
+const file = e.target.files[0];
+if (!file) return;
+const reader = new FileReader();
+reader.onload = ev => {
+try {
+const data = JSON.parse(ev.target.result);
+if (!data.cards || !Array.isArray(data.cards)) {
+showToast(“無効なファイル形式です”);
+return;
+}
+const migrated = migrateCards(data.cards);
+const existingNames = new Set(cards.map(c => c.name));
+const newCards = migrated.filter(c => !existingNames.has(c.name));
+const dupeCount = migrated.length - newCards.length;
+const toAdd = newCards.map(c => ({
+…c,
+id: Date.now().toString() + Math.random().toString(36).slice(2)
+}));
+setCards(prev => […prev, …toAdd]);
+if (data.customCollections) {
+setCustomCollections(prev => {
+const all = new Set([…prev, …data.customCollections]);
+return […all].filter(c => !INITIAL_COLLECTIONS.includes(c));
+});
+}
+showToast(dupeCount > 0 ? `${toAdd.length}件追加（${dupeCount}件スキップ）` : `${toAdd.length}件インポート完了`);
+} catch (e) {
+showToast(“ファイルの読み込みに失敗しました”);
+}
+};
+reader.readAsText(file);
+e.target.value = “”;
+};
+return /*#**PURE***/React.createElement(“div”, {
+style: S.app
+}, toast && /*#**PURE***/React.createElement(“div”, {
+style: S.toast
+}, toast), /*#**PURE***/React.createElement(“input”, {
+ref: importRef,
+type: “file”,
+accept: “.json”,
+onChange: handleImport,
+style: {
+display: “none”
+}
+}), /*#**PURE***/React.createElement(“header”, {
+style: S.header
+}, /*#**PURE***/React.createElement(“div”, {
+style: S.headerInner
+}, /*#**PURE***/React.createElement(“div”, {
+style: S.logo,
+onClick: () => {
+setView(“home”);
+setQuizState(null);
+setEditingCard(null);
+}
+}, /*#**PURE***/React.createElement(“span”, {
+style: S.logoIcon
+}, “M”), /*#**PURE***/React.createElement(“div”, null, /*#**PURE***/React.createElement(“div”, {
+style: S.logoTitle
+}, “MYKITA”), /*#**PURE***/React.createElement(“div”, {
+style: S.logoSub
+}, “FRAME CARDS”))), /*#**PURE***/React.createElement(“nav”, {
+style: S.nav
+}, [[“home”, “HOME”], [“register”, “REGISTER”], [“list”, “LIST”]].map(([k, l]) => /*#**PURE***/React.createElement(“button”, {
+key: k,
+style: {
+…S.navBtn,
+…(view === k ? S.navActive : {})
+},
+onClick: () => {
+setView(k);
+if (k === “register”) setEditingCard(null);
+}
+}, l))))), /*#**PURE***/React.createElement(“main”, {
+style: S.main
+}, view === “home” && /*#**PURE***/React.createElement(Home, {
+cardCount: cards.length,
+onNav: setView,
+onQuiz: openQuizSetup,
+onExport: exportData,
+onImport: () => importRef.current && importRef.current.click()
+}), view === “quizSetup” && quizSetupMode && /*#**PURE***/React.createElement(QuizSetup, {
+mode: quizSetupMode,
+cards: cards,
+activeCollections: activeCollections,
+onStart: col => startQuiz(quizSetupMode, col),
+onBack: () => {
+setQuizSetupMode(null);
+setView(“home”);
+}
+}), view === “register” && /*#**PURE***/React.createElement(Form, {
+onSubmit: editingCard ? updateCard : addCard,
+initial: editingCard,
+allCollections: allCollections,
+onAddCol: addCollection,
+onCancel: () => {
+setEditingCard(null);
+setView(“list”);
+}
+}), view === “list” && /*#**PURE***/React.createElement(List, {
+cards: filteredCards,
+onEdit: c => {
+setEditingCard(c);
+setView(“register”);
+},
+onDelete: deleteCard,
+filterCollection: filterCollection,
+setFilterCollection: setFilterCollection,
+searchText: searchText,
+setSearchText: setSearchText,
+allCollections: allCollections
+}), view === “quiz” && quizState && /*#**PURE***/React.createElement(Quiz, {
+state: quizState,
+setState: setQuizState,
+onEnd: () => {
+setQuizState(null);
+setView(“home”);
+}
+})));
 }
 
 /* ── Home ── */
@@ -1848,11 +1857,23 @@ padding: 24
 }
 };
 ReactDOM.createRoot(document.getElementById(“root”)).render(/*#**PURE***/React.createElement(App, null));
-} catch(e) {
-document.getElementById(“root”).innerHTML = ‘<div class="err-box"><p>Init Error:</p><p>’ + e.message + ‘</p><p>’ + (e.stack || ‘’).substring(0,300) + ‘</p></div>’;
 }
+
+</script>
+<script>
+if(typeof React!=="undefined" && typeof startApp==="function"){
+  try {
+    startApp();
+    document.getElementById("status").textContent="";
+  } catch(e) {
+    document.getElementById("status").innerHTML="<b style='color:red'>App Error:</b><br>"+e.message+"<br><pre style='text-align:left;font-size:11px;overflow:auto;max-height:200px'>"+e.stack+"</pre>";
+  }
+} else {
+  var s = document.getElementById("status");
+  if(s && s.textContent.indexOf("Error")===-1) {
+    s.innerHTML = "<b style='color:red'>startApp not defined. React:" + (typeof React) + "</b>";
+  }
 }
 </script>
-
 </body>
 </html>
