@@ -1,2187 +1,502 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>MYKITA FRAME CARDS</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Noto+Sans+JP:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'DM Sans','Noto Sans JP',sans-serif;background:#fff;color:#1a1a1a;-webkit-font-smoothing:antialiased}
-  input,select,textarea,button{font-family:'DM Sans','Noto Sans JP',sans-serif}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:#000!important}
-  button:hover{opacity:0.85}
-  ::placeholder{color:#bbb}
-  @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Shift" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Shift Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #f5f4f2; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #111; letter-spacing: 0.01em; -webkit-tap-highlight-color: transparent; }
+    button { font-family: inherit; -webkit-appearance: none; }
+    input, textarea { font-family: inherit; -webkit-appearance: none; border-radius: 0; }
+    .shift-app { min-height: 100vh; min-height: -webkit-fill-available; background: #f5f4f2; }
+    .safe-top { padding-top: env(safe-area-inset-top); }
+    .safe-bot { padding-bottom: env(safe-area-inset-bottom); }
+    .cal-day:hover { background: #ebebea !important; }
+    .list-row:hover { background: #f0eeec !important; }
+    .icon-btn:hover { opacity: 0.5; }
+    .primary-btn:active { background: #333 !important; }
+    .ghost-btn:active { background: #e8e6e4 !important; }
+    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    #root { height: 100%; }
+  </style>
 </head>
 <body>
-<div id="root"><p id="status" style="padding:40px 20px;text-align:center;font-size:13px;color:#aaa">Loading...</p></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous" onerror="document.getElementById('status').innerHTML='<b style=color:red>React CDN failed</b>'"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous" onerror="document.getElementById('status').innerHTML='<b style=color:red>ReactDOM CDN failed</b>'"></script>
-<script>
-window.onerror=function(msg,src,line){document.getElementById("status").innerHTML="<b style='color:red'>Error:</b><br>"+msg+"<br>Line:"+line;return true};
-if(typeof React==="undefined"){document.getElementById("status").innerHTML="<b style='color:red'>React not loaded</b>"}else{try{
-const {
-  useState,
-  useEffect,
-  useRef
-} = React;
-const INITIAL_COLLECTIONS = ["LESSRIM", "LITE", "NO1", "ACETATE", "MYLON", "CRAFT", "STUDIO", "DECADES", "MMRAW", "MMCRAFT", "MMTRANSFER", "MMSUN", "MMESSE"];
-const SHAPE_DATA = {
-  "ボストン": {
-    icon: "M6,10 Q8,7 16,7 Q24,7 26,10 Q28,13 27,20 L25,25 Q22,29 16,29 Q10,29 7,25 L5,20 Q4,13 6,10Z",
-    desc: "逆三角寄りの丸みあるクラシック型",
-    feature: "知的かつ温かみ。トレンド性が高い",
-    face: "面長・三角顔"
-  },
-  "ウェリントン": {
-    icon: "M4,8 L28,8 L27,14 L26,28 L6,28 L5,14Z",
-    desc: "台形型。上辺が広く下辺が狭い",
-    feature: "存在感がありつつ落ち着いた印象。定番",
-    face: "丸顔・卵型"
-  },
-  "オーバル": {
-    icon: "M16,8 C25,8 30,13 30,18 C30,23 25,28 16,28 C7,28 2,23 2,18 C2,13 7,8 16,8Z",
-    desc: "横長の楕円形。最もベーシックで万能",
-    feature: "柔らかく自然な印象。ビジネスにもカジュアルにも",
-    face: "四角顔・ベース型"
-  },
-  "ラウンド": {
-    icon: "M16,6 C24,6 28,11 28,18 C28,25 24,30 16,30 C8,30 4,25 4,18 C4,11 8,6 16,6Z",
-    desc: "正円に近い丸型",
-    feature: "知的で柔和、レトロ・クラシックな雰囲気",
-    face: "四角顔・面長"
-  },
-  "スクウェア": {
-    icon: "M5,7 L27,7 L27,27 L5,27Z",
-    desc: "正方形に近い四角型",
-    feature: "シャープで知的、モダンな雰囲気",
-    face: "丸顔・卵型"
-  },
-  "ボックス": {
-    icon: "M3,9 L29,9 L29,25 L3,25Z",
-    desc: "横長の長方形型",
-    feature: "スタイリッシュでシャープ。横ラインを強調",
-    face: "面長・卵型"
-  },
-  "ブロー": {
-    icon: "M3,8 L29,8 L29,12 L28,12 Q27,14 26,20 Q24,28 16,28 Q8,28 6,20 Q5,14 4,12 L3,12Z",
-    desc: "上部が太く下部が細いサーモント型",
-    feature: "眉ラインを強調し顔に立体感を与える",
-    face: "面長・三角顔・丸顔"
-  },
-  "アンダーブロー": {
-    icon: "M4,8 Q5,14 6,18 Q8,8 16,8 Q24,8 26,18 Q27,14 28,8 L28,20 L29,24 L29,28 L3,28 L3,24 L4,20Z",
-    desc: "下部が太く上部が細い逆サーモント型",
-    feature: "個性的で新鮮な印象。顔の下半分を強調",
-    face: "面長・逆三角顔"
-  },
-  "バリ": {
-    icon: "M2,9 L30,9 L30,12 L29,12 L28,16 L26,22 Q24,26 20,26 L16,27 L12,26 Q8,26 6,22 L4,16 L3,12 L2,12Z",
-    desc: "ブロウバー付きの角張ったアビエーター型",
-    feature: "無骨でクラシカル。ミリタリー由来の定番",
-    face: "丸顔・四角顔"
-  },
-  "ナス/ティアドロップ": {
-    icon: "M3,9 L29,9 L29,11 Q28,14 27,17 L24,24 Q20,30 16,30 Q12,30 8,24 L5,17 Q4,14 3,11Z",
-    desc: "涙の雫のように下に垂れる形",
-    feature: "ワイルドで男性的。パイロットサングラスの定番",
-    face: "四角顔・面長"
-  },
-  "セミオート": {
-    icon: "M4,10 Q6,7 16,7 Q26,7 28,10 L28,12 Q27,16 25,22 Q22,28 16,28 Q10,28 7,22 Q5,16 4,12Z",
-    desc: "ティアドロップをやや丸くしたソフトな形",
-    feature: "柔らかい印象のアビエーター。上品なカジュアル",
-    face: "四角顔・ベース型"
-  },
-  "レキシントン": {
-    icon: "M5,8 L27,8 Q29,8 29,11 L28,24 Q27,28 24,28 L8,28 Q5,28 4,24 L3,11 Q3,8 5,8Z",
-    desc: "ウェリントンよりやや丸みのある台形",
-    feature: "柔らかさと安定感を両立。普段使いしやすい",
-    face: "丸顔・卵型"
-  },
-  "ヘキサゴン": {
-    icon: "M10,5 L22,5 L29,16 L22,27 L10,27 L3,16Z",
-    desc: "六角形の多角形フレーム",
-    feature: "個性的でアーティスティック。モード系",
-    face: "卵型・丸顔"
-  },
-  "オクタゴン": {
-    icon: "M11,4 L21,4 L28,10 L28,22 L21,28 L11,28 L4,22 L4,10Z",
-    desc: "八角形の多角形フレーム",
-    feature: "ヘキサゴンより柔らかい多角形。知的で洗練",
-    face: "丸顔・卵型"
-  },
-  "クラウンパント": {
-    icon: "M4,14 L8,8 L12,6 L20,6 L24,8 L28,14 L28,22 Q28,29 16,29 Q4,29 4,22Z",
-    desc: "上辺がブリッジ状に盛り上がったパント型",
-    feature: "クラシカルかつ個性的。ヴィンテージ感ある洗練",
-    face: "面長・卵型・四角顔"
-  },
-  "その他": {
-    icon: "M10,16 L16,6 L22,16 L16,26Z",
-    desc: "上記に当てはまらない特殊なシェイプ",
-    feature: "ブランド独自のユニークな造形",
-    face: "フレームにより異なる"
-  }
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ── Initial Data ─────────────────────────────────────────────
+const MARCH_2026_DATA = {
+  "2026-03-01": { status: "休日", startTime: "", endTime: "", memo: "" },
+  "2026-03-02": { status: "休日", startTime: "", endTime: "", memo: "" },
+  "2026-03-03": { status: "出勤", startTime: "10:00", endTime: "", memo: "" },
+  "2026-03-04": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-05": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-06": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-07": { status: "休日", startTime: "", endTime: "", memo: "" },
+  "2026-03-08": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-09": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-10": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-11": { status: "休日", startTime: "", endTime: "", memo: "" },
+  "2026-03-12": { status: "出勤", startTime: "11:30", endTime: "", memo: "選番研修 / クレジット説明会" },
+  "2026-03-13": { status: "出勤", startTime: "11:30", endTime: "", memo: "選番研修 / 店長会" },
+  "2026-03-14": { status: "出勤", startTime: "11:00", endTime: "", memo: "選番研修" },
+  "2026-03-15": { status: "休日", startTime: "", endTime: "", memo: "" },
+  "2026-03-16": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-17": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-18": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-19": { status: "休日", startTime: "", endTime: "", memo: "" },
+  "2026-03-20": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-21": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-22": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-23": { status: "休日", startTime: "", endTime: "", memo: "" },
+  "2026-03-24": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-25": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-26": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-27": { status: "休日", startTime: "", endTime: "", memo: "" },
+  "2026-03-28": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-29": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-30": { status: "出勤", startTime: "09:30", endTime: "", memo: "" },
+  "2026-03-31": { status: "休日", startTime: "", endTime: "", memo: "" },
 };
-const SHAPES = Object.keys(SHAPE_DATA);
-const IMG_TYPES = [{
-  key: "face",
-  label: "FACE",
-  desc: "正面"
-}, {
-  key: "detail",
-  label: "DETAIL",
-  desc: "ディテール"
-}];
-const MAX_IMAGES = 3;
-const TAX_RATE = 0.10;
-function loadData(key, fallback) {
-  try {
-    var v = localStorage.getItem(key);
-    return v ? JSON.parse(v) : fallback;
-  } catch (e) {
-    return fallback;
-  }
+
+const WEEKDAY_JP = ["日", "月", "火", "水", "木", "金", "土"];
+
+// ── Helpers ──────────────────────────────────────────────────
+function dateKey(y, m, d) {
+  return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
 }
-function saveData(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {}
+function calcHours(start, end) {
+  if (!start || !end) return null;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  const diff = (eh * 60 + em) - (sh * 60 + sm);
+  return diff > 0 ? diff / 60 : null;
 }
-function shuffleArray(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-function getFaceImg(images) {
-  if (!images || images.length === 0) return null;
-  var found = images.find(function (i) {
-    return i.type === "face";
-  });
-  return found && found.data || images[0] && images[0].data || null;
-}
-// Migrate old single-image cards to new format
-function migrateCards(cards) {
-  return cards.map(c => {
-    if (c.image && !c.images) {
-      return {
-        ...c,
-        images: [{
-          type: "face",
-          data: c.image
-        }],
-        image: undefined
-      };
-    }
-    if (!c.images) return {
-      ...c,
-      images: []
-    };
-    return c;
-  });
-}
-function ShapeIcon({
-  name,
-  size = 32,
-  color = "#1a1a1a"
-}) {
-  const d = SHAPE_DATA[name];
-  if (!d) return null;
-  return /*#__PURE__*/React.createElement("svg", {
-    width: size,
-    height: size,
-    viewBox: "0 0 32 32",
-    fill: "none",
-    stroke: color,
-    strokeWidth: "1.5"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: d.icon
-  }));
-}
-function App() {
-  const [cards, setCards] = useState(() => migrateCards(loadData("mykita-cards", [])));
-  const [customCollections, setCustomCollections] = useState(() => loadData("mykita-cols", []));
-  const [view, setView] = useState("home");
-  const [editingCard, setEditingCard] = useState(null);
-  const [quizState, setQuizState] = useState(null);
-  const [quizSetupMode, setQuizSetupMode] = useState(null);
-  const [filterCollection, setFilterCollection] = useState("ALL");
-  const [searchText, setSearchText] = useState("");
-  const [toast, setToast] = useState(null);
-  const allCollections = [...INITIAL_COLLECTIONS, ...customCollections];
-  // Collections that actually have cards registered
-  const activeCollections = allCollections.filter(col => cards.some(c => c.collection === col));
-  useEffect(() => {
-    saveData("mykita-cards", cards);
-  }, [cards]);
-  useEffect(() => {
-    saveData("mykita-cols", customCollections);
-  }, [customCollections]);
-  const showToast = msg => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2000);
-  };
-  const addCard = card => {
-    setCards(p => [...p, {
-      ...card,
-      id: Date.now().toString()
-    }]);
-    showToast("登録完了");
-    setView("list");
-  };
-  const updateCard = card => {
-    setCards(p => p.map(c => c.id === card.id ? card : c));
-    showToast("更新完了");
-    setEditingCard(null);
-    setView("list");
-  };
-  const deleteCard = id => {
-    setCards(p => p.filter(c => c.id !== id));
-    showToast("削除しました");
-  };
-  const addCollection = name => {
-    if (name && !allCollections.includes(name)) setCustomCollections(p => [...p, name]);
-  };
-  const filteredCards = cards.filter(c => {
-    const mc = filterCollection === "ALL" || c.collection === filterCollection;
-    const ms = !searchText || [c.name, c.reading, c.features].some(f => (f || "").toLowerCase().includes(searchText.toLowerCase()));
-    return mc && ms;
-  });
-  const getCardsByCollection = col => col === "ALL" ? cards : cards.filter(c => c.collection === col);
-  const openQuizSetup = mode => {
-    if (cards.length === 0) {
-      showToast("カードがありません");
-      return;
-    }
-    setQuizSetupMode(mode);
-    setView("quizSetup");
-  };
-  const startQuiz = (mode, collection) => {
-    const pool = getCardsByCollection(collection);
-    if (pool.length === 0) {
-      showToast("カードがありません");
-      return;
-    }
-    setQuizState({
-      mode,
-      collection,
-      cards: shuffleArray(pool),
-      index: 0,
-      revealed: false,
-      score: 0,
-      total: pool.length
-    });
-    setQuizSetupMode(null);
-    setView("quiz");
-  };
-  const exportData = () => {
-    if (cards.length === 0) {
-      showToast("エクスポートするデータがありません");
-      return;
-    }
-    const data = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      cards,
-      customCollections
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json"
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `mykita-frames_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast("エクスポート完了");
-  };
-  const importRef = useRef(null);
-  const handleImport = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        if (!data.cards || !Array.isArray(data.cards)) {
-          showToast("無効なファイル形式です");
-          return;
-        }
-        const migrated = migrateCards(data.cards);
-        // Merge: add cards with new IDs to avoid duplicates
-        const existingNames = new Set(cards.map(c => c.name));
-        const newCards = migrated.filter(c => !existingNames.has(c.name));
-        const dupeCount = migrated.length - newCards.length;
-        const toAdd = newCards.map(c => ({
-          ...c,
-          id: Date.now().toString() + Math.random().toString(36).slice(2)
-        }));
-        setCards(prev => [...prev, ...toAdd]);
-        // Merge custom collections
-        if (data.customCollections) {
-          setCustomCollections(prev => {
-            const all = new Set([...prev, ...data.customCollections]);
-            return [...all].filter(c => !INITIAL_COLLECTIONS.includes(c));
-          });
-        }
-        const msg = dupeCount > 0 ? `${toAdd.length}件追加（${dupeCount}件は重複のためスキップ）` : `${toAdd.length}件インポート完了`;
-        showToast(msg);
-      } catch (e) {
-        showToast("ファイルの読み込みに失敗しました");
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    style: S.app
-  }, /*#__PURE__*/React.createElement("style", null, `
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        input, select, textarea, button { font-family: 'DM Sans', 'Noto Sans JP', sans-serif; }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: #000 !important; }
-        button:hover { opacity: 0.85; }
-        ::placeholder { color: #bbb; }
-        @keyframes slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-      `), toast && /*#__PURE__*/React.createElement("div", {
-    style: S.toast
-  }, toast), /*#__PURE__*/React.createElement("input", {
-    ref: importRef,
-    type: "file",
-    accept: ".json",
-    onChange: handleImport,
-    style: {
-      display: "none"
-    }
-  }), /*#__PURE__*/React.createElement("header", {
-    style: S.header
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.headerInner
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.logo,
-    onClick: () => {
-      setView("home");
-      setQuizState(null);
-      setEditingCard(null);
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.logoIcon
-  }, "M"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: S.logoTitle
-  }, "MYKITA"), /*#__PURE__*/React.createElement("div", {
-    style: S.logoSub
-  }, "FRAME CARDS"))), /*#__PURE__*/React.createElement("nav", {
-    style: S.nav
-  }, [["home", "HOME"], ["register", "REGISTER"], ["list", "LIST"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
-    key: k,
-    style: {
-      ...S.navBtn,
-      ...(view === k ? S.navActive : {})
-    },
-    onClick: () => {
-      setView(k);
-      if (k === "register") setEditingCard(null);
-    }
-  }, l))))), /*#__PURE__*/React.createElement("main", {
-    style: S.main
-  }, view === "home" && /*#__PURE__*/React.createElement(Home, {
-    cardCount: cards.length,
-    onNav: setView,
-    onQuiz: openQuizSetup,
-    onExport: exportData,
-    onImport: () => importRef.current && importRef.current.click()
-  }), view === "shapeGuide" && /*#__PURE__*/React.createElement(ShapeGuide, {
-    onBack: () => setView("home")
-  }), view === "quizSetup" && quizSetupMode && /*#__PURE__*/React.createElement(QuizSetup, {
-    mode: quizSetupMode,
-    cards: cards,
-    activeCollections: activeCollections,
-    onStart: col => startQuiz(quizSetupMode, col),
-    onBack: () => {
-      setQuizSetupMode(null);
-      setView("home");
-    }
-  }), view === "register" && /*#__PURE__*/React.createElement(Form, {
-    onSubmit: editingCard ? updateCard : addCard,
-    initial: editingCard,
-    allCollections: allCollections,
-    onAddCol: addCollection,
-    onCancel: () => {
-      setEditingCard(null);
-      setView("list");
-    }
-  }), view === "list" && /*#__PURE__*/React.createElement(List, {
-    cards: filteredCards,
-    onEdit: c => {
-      setEditingCard(c);
-      setView("register");
-    },
-    onDelete: deleteCard,
-    filterCollection: filterCollection,
-    setFilterCollection: setFilterCollection,
-    searchText: searchText,
-    setSearchText: setSearchText,
-    allCollections: allCollections
-  }), view === "quiz" && quizState && /*#__PURE__*/React.createElement(Quiz, {
-    state: quizState,
-    setState: setQuizState,
-    onEnd: () => {
-      setQuizState(null);
-      setView("home");
-    }
-  })));
+function formatHours(h) {
+  const hours = Math.floor(h);
+  const mins = Math.round((h - hours) * 60);
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
-/* ── Home ── */
-function Home({
-  cardCount,
-  onNav,
-  onQuiz,
-  onExport,
-  onImport
-}) {
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      animation: "fadeIn .4s ease"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.hero
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.heroDeco
-  }), /*#__PURE__*/React.createElement("h1", {
-    style: S.heroTitle
-  }, "FRAME", /*#__PURE__*/React.createElement("br", null), "CARDS"), /*#__PURE__*/React.createElement("p", {
-    style: S.heroDesc
-  }, "MYKITA\u30D5\u30EC\u30FC\u30E0\u306E\u77E5\u8B58\u3092\u78E8\u304F"), /*#__PURE__*/React.createElement("div", {
-    style: S.heroStat
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.heroStatNum
-  }, cardCount), /*#__PURE__*/React.createElement("span", {
-    style: S.heroStatLabel
-  }, "REGISTERED"))), /*#__PURE__*/React.createElement("div", {
-    style: S.divider
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.dividerLine
-  }), /*#__PURE__*/React.createElement("span", {
-    style: S.dividerText
-  }, "STUDY"), /*#__PURE__*/React.createElement("span", {
-    style: S.dividerLine
-  })), /*#__PURE__*/React.createElement("div", {
-    style: S.modeGrid
-  }, [{
-    key: "img2name",
-    title: "IMAGE → NAME",
-    desc: "画像からフレーム名を当てる"
-  }, {
-    key: "name2feat",
-    title: "NAME → FEATURES",
-    desc: "名前から特徴を思い出す"
-  }, {
-    key: "random",
-    title: "RANDOM",
-    desc: "コレクション別にランダム出題"
-  }].map((m, i) => /*#__PURE__*/React.createElement("button", {
-    key: m.key,
-    style: {
-      ...S.modeCard,
-      animationDelay: `${i * 0.06}s`
-    },
-    onClick: () => onQuiz(m.key)
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.modeNum
-  }, String(i + 1).padStart(2, "0")), /*#__PURE__*/React.createElement("div", {
-    style: S.modeTitle
-  }, m.title), /*#__PURE__*/React.createElement("div", {
-    style: S.modeDesc
-  }, m.desc), /*#__PURE__*/React.createElement("div", {
-    style: S.modeArrow
-  }, "\u2192"))), /*#__PURE__*/React.createElement("button", {
-    style: {
-      ...S.modeCard,
-      animationDelay: "0.18s"
-    },
-    onClick: () => onNav("list")
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.modeNum
-  }, "04"), /*#__PURE__*/React.createElement("div", {
-    style: S.modeTitle
-  }, "ALL CARDS"), /*#__PURE__*/React.createElement("div", {
-    style: S.modeDesc
-  }, "\u767B\u9332\u6E08\u307F\u30AB\u30FC\u30C9\u3092\u78BA\u8A8D\u30FB\u691C\u7D22"), /*#__PURE__*/React.createElement("div", {
-    style: S.modeArrow
-  }, "\u2192"))), /*#__PURE__*/React.createElement("button", {
-    style: S.registerCta,
-    onClick: () => onNav("register")
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.ctaPlus
-  }, "+"), " \u65B0\u3057\u3044\u30D5\u30EC\u30FC\u30E0\u3092\u767B\u9332"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...S.divider,
-      margin: "36px 0 16px"
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.dividerLine
-  }), /*#__PURE__*/React.createElement("span", {
-    style: S.dividerText
-  }, "DATA"), /*#__PURE__*/React.createElement("span", {
-    style: S.dividerLine
-  })), /*#__PURE__*/React.createElement("div", {
-    style: S.dataRow
-  }, /*#__PURE__*/React.createElement("button", {
-    style: S.dataBtn,
-    onClick: onExport
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.dataBtnIcon
-  }, "\u2193"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: S.dataBtnTitle
-  }, "EXPORT"), /*#__PURE__*/React.createElement("div", {
-    style: S.dataBtnDesc
-  }, "JSON\u30D5\u30A1\u30A4\u30EB\u306B\u4FDD\u5B58"))), /*#__PURE__*/React.createElement("button", {
-    style: S.dataBtn,
-    onClick: onImport
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.dataBtnIcon
-  }, "\u2191"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: S.dataBtnTitle
-  }, "IMPORT"), /*#__PURE__*/React.createElement("div", {
-    style: S.dataBtnDesc
-  }, "JSON\u30D5\u30A1\u30A4\u30EB\u304B\u3089\u8AAD\u8FBC")))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...S.divider,
-      margin: "36px 0 16px"
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.dividerLine
-  }), /*#__PURE__*/React.createElement("span", {
-    style: S.dividerText
-  }, "REFERENCE"), /*#__PURE__*/React.createElement("span", {
-    style: S.dividerLine
-  })), /*#__PURE__*/React.createElement("button", {
-    style: {
-      ...S.registerCta,
-      background: "#fff",
-      color: "#1a1a1a",
-      border: "1px solid #e8e8e8"
-    },
-    onClick: () => onNav("shapeGuide")
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 14
-    }
-  }, "\u25C7"), " SHAPE GUIDE \u2014 \u30B7\u30A7\u30A4\u30D7\u56F3\u9451"));
-}
-
-/* ── QuizSetup: Collection Selection ── */
-function QuizSetup({
-  mode,
-  cards,
-  activeCollections,
-  onStart,
-  onBack
-}) {
-  const modeLabels = {
-    img2name: "IMAGE → NAME",
-    name2feat: "NAME → FEATURES",
-    random: "RANDOM"
-  };
-  const countByCol = col => cards.filter(c => c.collection === col).length;
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      animation: "fadeIn .3s ease"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.panelHeader
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      marginBottom: 8
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    style: S.backBtn,
-    onClick: onBack
-  }, "\u2190"), /*#__PURE__*/React.createElement("h2", {
-    style: {
-      ...S.panelTitle,
-      margin: 0
-    }
-  }, modeLabels[mode] || "QUIZ")), /*#__PURE__*/React.createElement("div", {
-    style: S.panelLine
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: "#999",
-      letterSpacing: "0.08em",
-      marginBottom: 20
-    }
-  }, "\u30B3\u30EC\u30AF\u30B7\u30E7\u30F3\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044"), /*#__PURE__*/React.createElement("button", {
-    style: S.colPickBtn,
-    onClick: () => onStart("ALL")
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.colPickInfo
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.colPickName
-  }, "ALL COLLECTIONS"), /*#__PURE__*/React.createElement("div", {
-    style: S.colPickCount
-  }, cards.length, " cards")), /*#__PURE__*/React.createElement("div", {
-    style: S.colPickArrow
-  }, "\u2192")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...S.divider,
-      margin: "16px 0"
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.dividerLine
-  }), /*#__PURE__*/React.createElement("span", {
-    style: S.dividerText
-  }, "BY COLLECTION"), /*#__PURE__*/React.createElement("span", {
-    style: S.dividerLine
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 1
-    }
-  }, activeCollections.map((col, i) => /*#__PURE__*/React.createElement("button", {
-    key: col,
-    style: {
-      ...S.colPickBtn,
-      animation: `slideUp .25s ease ${i * 0.03}s both`
-    },
-    onClick: () => onStart(col)
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.colPickInfo
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.colPickName
-  }, col), /*#__PURE__*/React.createElement("div", {
-    style: S.colPickCount
-  }, countByCol(col), " cards")), /*#__PURE__*/React.createElement("div", {
-    style: S.colPickArrow
-  }, "\u2192")))), activeCollections.length === 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      padding: 40,
-      color: "#ccc",
-      fontSize: 12,
-      letterSpacing: "0.12em"
-    }
-  }, "NO CARDS REGISTERED"));
-}
-
-/* ── ShapeGuide: Reference page ── */
-function ShapeGuide({
-  onBack
-}) {
-  const [expanded, setExpanded] = useState(null);
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      animation: "fadeIn .3s ease"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.panelHeader
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      marginBottom: 8
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    style: S.backBtn,
-    onClick: onBack
-  }, "\u2190"), /*#__PURE__*/React.createElement("h2", {
-    style: {
-      ...S.panelTitle,
-      margin: 0
-    }
-  }, "SHAPE GUIDE")), /*#__PURE__*/React.createElement("div", {
-    style: S.panelLine
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: "#999",
-      letterSpacing: "0.08em",
-      marginBottom: 20
-    }
-  }, "\u5404\u30B7\u30A7\u30A4\u30D7\u306E\u7279\u5FB4\u3068\u4F3C\u5408\u3046\u9854\u578B"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 1
-    }
-  }, SHAPES.filter(s => s !== "その他").map((name, i) => {
-    const d = SHAPE_DATA[name];
-    const isOpen = expanded === name;
-    return /*#__PURE__*/React.createElement("button", {
-      key: name,
-      style: {
-        ...S.colPickBtn,
-        flexDirection: "column",
-        alignItems: "stretch",
-        animation: `slideUp .25s ease ${i * 0.03}s both`
-      },
-      onClick: () => setExpanded(isOpen ? null : name)
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 14
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        width: 44,
-        height: 44,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        border: "1px solid #e8e8e8",
-        flexShrink: 0
-      }
-    }, /*#__PURE__*/React.createElement(ShapeIcon, {
-      name: name,
-      size: 32,
-      color: "#1a1a1a"
-    })), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: S.colPickName
-    }, name), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: "#aaa",
-        marginTop: 2
-      }
-    }, d.desc)), /*#__PURE__*/React.createElement("div", {
-      style: {
-        ...S.colPickArrow,
-        transform: isOpen ? "rotate(90deg)" : "none",
-        transition: "transform .2s"
-      }
-    }, "\u2192")), isOpen && /*#__PURE__*/React.createElement("div", {
-      style: {
-        marginTop: 14,
-        paddingTop: 14,
-        borderTop: "1px solid #f0f0f0",
-        textAlign: "left"
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        marginBottom: 10
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 9,
-        fontWeight: 600,
-        letterSpacing: "0.18em",
-        color: "#bbb",
-        marginBottom: 4
-      }
-    }, "FEATURE"), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12,
-        color: "#666",
-        lineHeight: 1.7
-      }
-    }, d.feature)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 9,
-        fontWeight: 600,
-        letterSpacing: "0.18em",
-        color: "#bbb",
-        marginBottom: 4
-      }
-    }, "FACE TYPE"), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12,
-        color: "#666",
-        lineHeight: 1.7
-      }
-    }, d.face))));
-  })));
-}
-
-/* ── ImageSlots: face + detail (max 3) ── */
-function ImageSlots({
-  images,
-  onChange
-}) {
-  const fileRef = useRef(null);
-  const [addingType, setAddingType] = useState(null);
-  const handleFile = e => {
-    const f = e.target.files[0];
-    if (!f || !addingType) return;
-    const r = new FileReader();
-    r.onload = ev => {
-      onChange([...images, {
-        type: addingType,
-        data: ev.target.result
-      }]);
-      setAddingType(null);
-    };
-    r.readAsDataURL(f);
-    e.target.value = "";
-  };
-  const remove = idx => onChange(images.filter((_, i) => i !== idx));
-  const startAdd = type => {
-    setAddingType(type);
-    setTimeout(() => fileRef.current && fileRef.current.click(), 50);
-  };
-  const faceImages = images.filter(i => i.type === "face");
-  const detailImages = images.filter(i => i.type === "detail");
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 28
-    }
-  }, /*#__PURE__*/React.createElement("label", {
-    style: S.label
-  }, "IMAGES (", images.length, "/", MAX_IMAGES, ")"), images.length > 0 && /*#__PURE__*/React.createElement("div", {
-    style: S.imgGrid
-  }, images.map((img, idx) => /*#__PURE__*/React.createElement("div", {
-    key: idx,
-    style: S.imgSlot
-  }, /*#__PURE__*/React.createElement("img", {
-    src: img.data,
-    alt: "",
-    style: S.imgSlotPreview
-  }), /*#__PURE__*/React.createElement("div", {
-    style: S.imgSlotLabel
-  }, img.type === "face" ? "FACE" : "DETAIL"), /*#__PURE__*/React.createElement("button", {
-    style: S.imgSlotRemove,
-    onClick: () => remove(idx)
-  }, "\xD7")))), images.length < MAX_IMAGES && /*#__PURE__*/React.createElement("div", {
-    style: S.imgAddRow
-  }, faceImages.length === 0 && /*#__PURE__*/React.createElement("button", {
-    style: S.imgAddBtn,
-    onClick: () => startAdd("face")
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.imgAddPlus
-  }, "+"), /*#__PURE__*/React.createElement("span", {
-    style: S.imgAddLabel
-  }, "FACE"), /*#__PURE__*/React.createElement("span", {
-    style: S.imgAddDesc
-  }, "\u6B63\u9762")), images.length < MAX_IMAGES && /*#__PURE__*/React.createElement("button", {
-    style: S.imgAddBtn,
-    onClick: () => startAdd("detail")
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.imgAddPlus
-  }, "+"), /*#__PURE__*/React.createElement("span", {
-    style: S.imgAddLabel
-  }, "DETAIL"), /*#__PURE__*/React.createElement("span", {
-    style: S.imgAddDesc
-  }, "\u30C7\u30A3\u30C6\u30FC\u30EB"))), /*#__PURE__*/React.createElement("input", {
-    ref: fileRef,
-    type: "file",
-    accept: "image/*",
-    onChange: handleFile,
-    style: {
-      display: "none"
-    }
-  }));
-}
-
-/* ── ImageGallery: show images in quiz/list ── */
-function ImageGallery({
-  images,
-  maxHeight = 240,
-  style: wrapStyle
-}) {
-  const [activeIdx, setActiveIdx] = useState(0);
-  if (!images || images.length === 0) return null;
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...wrapStyle
-    }
-  }, /*#__PURE__*/React.createElement("img", {
-    src: images[activeIdx] && images[activeIdx].data,
-    alt: "",
-    style: {
-      maxWidth: "100%",
-      maxHeight,
-      objectFit: "contain",
-      display: "block",
-      margin: "0 auto"
-    }
-  }), images.length > 1 && /*#__PURE__*/React.createElement("div", {
-    style: S.galleryDots
-  }, images.map((img, i) => /*#__PURE__*/React.createElement("button", {
-    key: i,
-    onClick: e => {
-      e.stopPropagation();
-      setActiveIdx(i);
-    },
-    style: {
-      ...S.galleryDot,
-      background: i === activeIdx ? "#1a1a1a" : "#ddd"
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.galleryDotLabel
-  }, img.type === "face" ? "F" : "D")))));
-}
-
-/* ── Form ── */
-function Form({
-  onSubmit,
-  initial,
-  allCollections,
-  onAddCol,
-  onCancel
-}) {
-  const [name, setName] = useState(initial && initial.name || "");
-  const [reading, setReading] = useState(initial && initial.reading || "");
-  const [collection, setCollection] = useState(initial && initial.collection || allCollections[0]);
-  const [shape, setShape] = useState(initial && initial.shape || SHAPES[0]);
-  const [features, setFeatures] = useState(initial && initial.features || "");
-  const [price, setPrice] = useState(initial && initial.price || "");
-  const [images, setImages] = useState(initial && initial.images || []);
-  const [newCol, setNewCol] = useState("");
-  const [showNewCol, setShowNewCol] = useState(false);
-  const submit = () => {
-    if (!name.trim()) return alert("フレーム名を入力してください");
-    onSubmit({
-      ...(initial || {}),
-      name: name.trim(),
-      reading: reading.trim(),
-      collection,
-      shape,
-      features: features.trim(),
-      price: price ? Number(price) : 0,
-      images
-    });
-  };
-  const handleAddCol = () => {
-    if (newCol.trim()) {
-      onAddCol(newCol.trim().toUpperCase());
-      setCollection(newCol.trim().toUpperCase());
-      setNewCol("");
-      setShowNewCol(false);
-    }
-  };
-  const taxInc = price ? `¥${Math.floor(Number(price) * 1.1).toLocaleString()}` : "";
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      animation: "slideUp .35s ease"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.panelHeader
-  }, /*#__PURE__*/React.createElement("h2", {
-    style: S.panelTitle
-  }, initial ? "EDIT FRAME" : "REGISTER FRAME"), /*#__PURE__*/React.createElement("div", {
-    style: S.panelLine
-  })), /*#__PURE__*/React.createElement(ImageSlots, {
-    images: images,
-    onChange: setImages
-  }), /*#__PURE__*/React.createElement(Field, {
-    label: "FRAME NAME",
-    required: true
-  }, /*#__PURE__*/React.createElement("input", {
-    style: S.input,
-    value: name,
-    onChange: e => setName(e.target.value),
-    placeholder: "e.g. HILLA"
-  })), /*#__PURE__*/React.createElement(Field, {
-    label: "READING / \u8AAD\u307F"
-  }, /*#__PURE__*/React.createElement("input", {
-    style: S.input,
-    value: reading,
-    onChange: e => setReading(e.target.value),
-    placeholder: "e.g. \u30D2\u30E9"
-  })), /*#__PURE__*/React.createElement("div", {
-    style: S.row
-  }, /*#__PURE__*/React.createElement(Field, {
-    label: "COLLECTION",
-    flex: true
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 6
-    }
-  }, /*#__PURE__*/React.createElement("select", {
-    style: {
-      ...S.input,
-      flex: 1
-    },
-    value: collection,
-    onChange: e => setCollection(e.target.value)
-  }, allCollections.map(c => /*#__PURE__*/React.createElement("option", {
-    key: c,
-    value: c
-  }, c))), /*#__PURE__*/React.createElement("button", {
-    style: S.addBtn,
-    onClick: () => setShowNewCol(!showNewCol)
-  }, "+")), showNewCol && /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 6,
-      marginTop: 6
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    style: {
-      ...S.input,
-      flex: 1
-    },
-    value: newCol,
-    onChange: e => setNewCol(e.target.value),
-    placeholder: "NEW COLLECTION"
-  }), /*#__PURE__*/React.createElement("button", {
-    style: S.addBtn,
-    onClick: handleAddCol
-  }, "ADD"))), /*#__PURE__*/React.createElement(Field, {
-    label: "SHAPE",
-    flex: true
-  }, /*#__PURE__*/React.createElement("select", {
-    style: S.input,
-    value: shape,
-    onChange: e => setShape(e.target.value)
-  }, SHAPES.map(s => /*#__PURE__*/React.createElement("option", {
-    key: s,
-    value: s
-  }, s))), SHAPE_DATA[shape] && shape !== "その他" && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 8,
-      padding: "10px 12px",
-      background: "#fafafa",
-      border: "1px solid #f0f0f0"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      marginBottom: 6
-    }
-  }, /*#__PURE__*/React.createElement(ShapeIcon, {
-    name: shape,
-    size: 28,
-    color: "#999"
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: "#999",
-      lineHeight: 1.5
-    }
-  }, SHAPE_DATA[shape].desc)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      color: "#aaa",
-      lineHeight: 1.6
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontWeight: 600,
-      letterSpacing: "0.08em"
-    }
-  }, "\u4F3C\u5408\u3046\u9854\u578B: "), SHAPE_DATA[shape].face)))), /*#__PURE__*/React.createElement(Field, {
-    label: "FEATURES / \u30BB\u30FC\u30EB\u30B9\u30DD\u30A4\u30F3\u30C8"
-  }, /*#__PURE__*/React.createElement("textarea", {
-    style: S.textarea,
-    value: features,
-    onChange: e => setFeatures(e.target.value),
-    placeholder: "e.g. \u8D85\u8EFD\u91CF\u30B9\u30C6\u30F3\u30EC\u30B9\u30B7\u30FC\u30C8\u30E1\u30BF\u30EB",
-    rows: 3
-  })), /*#__PURE__*/React.createElement(Field, {
-    label: "PRICE (\u7A0E\u629C)"
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 14,
-      fontWeight: 500
-    }
-  }, "\xA5"), /*#__PURE__*/React.createElement("input", {
-    style: {
-      ...S.input,
-      flex: 1
-    },
-    type: "number",
-    value: price,
-    onChange: e => setPrice(e.target.value),
-    placeholder: "45000"
-  }), taxInc && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12,
-      color: "#999",
-      whiteSpace: "nowrap"
-    }
-  }, "\u7A0E\u8FBC ", taxInc))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 10,
-      marginTop: 32
-    }
-  }, initial && /*#__PURE__*/React.createElement("button", {
-    style: S.btnSecondary,
-    onClick: onCancel
-  }, "CANCEL"), /*#__PURE__*/React.createElement("button", {
-    style: S.btnPrimary,
-    onClick: submit
-  }, initial ? "UPDATE" : "REGISTER")));
-}
-function Field({
-  label,
-  required,
-  children,
-  flex
-}) {
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 18,
-      ...(flex ? {
-        flex: 1
-      } : {})
-    }
-  }, /*#__PURE__*/React.createElement("label", {
-    style: S.label
-  }, label, required && /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: "#c00",
-      marginLeft: 3
-    }
-  }, "*")), children);
-}
-
-/* ── List ── */
-function List({
-  cards,
-  onEdit,
-  onDelete,
-  filterCollection,
-  setFilterCollection,
-  searchText,
-  setSearchText,
-  allCollections
-}) {
-  const [expanded, setExpanded] = useState(null);
-  const [delConfirm, setDelConfirm] = useState(null);
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      animation: "fadeIn .35s ease"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
-    style: S.panelTitle
-  }, "ALL CARDS"), /*#__PURE__*/React.createElement("div", {
-    style: S.panelLine
-  })), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: "#999",
-      letterSpacing: "0.1em"
-    }
-  }, cards.length, " ITEMS")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    style: {
-      ...S.input,
-      flex: 1
-    },
-    placeholder: "Search...",
-    value: searchText,
-    onChange: e => setSearchText(e.target.value)
-  }), /*#__PURE__*/React.createElement("select", {
-    style: {
-      ...S.input,
-      width: 150
-    },
-    value: filterCollection,
-    onChange: e => setFilterCollection(e.target.value)
-  }, /*#__PURE__*/React.createElement("option", {
-    value: "ALL"
-  }, "ALL"), allCollections.map(c => /*#__PURE__*/React.createElement("option", {
-    key: c,
-    value: c
-  }, c)))), cards.length === 0 ? /*#__PURE__*/React.createElement("div", {
-    style: S.empty
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: "#ccc",
-      letterSpacing: "0.15em"
-    }
-  }, "NO FRAMES REGISTERED")) : /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 1
-    }
-  }, cards.map((card, i) => {
-    const thumb = getFaceImg(card.images);
-    return /*#__PURE__*/React.createElement("div", {
-      key: card.id,
-      style: {
-        ...S.listCard,
-        animation: `slideUp .3s ease ${i * 0.03}s both`
-      },
-      onClick: () => setExpanded(expanded === card.id ? null : card.id)
-    }, /*#__PURE__*/React.createElement("div", {
-      style: S.listTop
-    }, thumb && /*#__PURE__*/React.createElement("img", {
-      src: thumb,
-      alt: "",
-      style: S.listThumb
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1,
-        minWidth: 0
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: S.listName
-    }, card.name), card.reading && /*#__PURE__*/React.createElement("div", {
-      style: S.listReading
-    }, card.reading), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        gap: 6,
-        marginTop: 6,
-        flexWrap: "wrap"
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: S.tag
-    }, card.collection), /*#__PURE__*/React.createElement("span", {
-      style: S.tag
-    }, card.shape), card.images && card.images.length > 0 && /*#__PURE__*/React.createElement("span", {
-      style: S.tag
-    }, card.images.length, " IMG"))), card.price > 0 && /*#__PURE__*/React.createElement("div", {
-      style: S.listPrice
-    }, "\xA5", Number(card.price).toLocaleString())), expanded === card.id && /*#__PURE__*/React.createElement("div", {
-      style: S.listExpand
-    }, card.images && card.images.length > 0 && /*#__PURE__*/React.createElement(ImageGallery, {
-      images: card.images,
-      maxHeight: 200,
-      style: {
-        marginBottom: 14
-      }
-    }), card.features && /*#__PURE__*/React.createElement("div", {
-      style: S.listFeatures
-    }, card.features), card.price > 0 && /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12,
-        color: "#999",
-        marginBottom: 12
-      }
-    }, "\u7A0E\u8FBC \xA5", Math.floor(card.price * 1.1).toLocaleString()), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        gap: 8
-      }
-    }, /*#__PURE__*/React.createElement("button", {
-      style: S.btnSmall,
-      onClick: e => {
-        e.stopPropagation();
-        onEdit(card);
-      }
-    }, "EDIT"), delConfirm === card.id ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 11,
-        color: "#999",
-        alignSelf: "center"
-      }
-    }, "\u524A\u9664\u3057\u307E\u3059\u304B\uFF1F"), /*#__PURE__*/React.createElement("button", {
-      style: {
-        ...S.btnSmall,
-        background: "#c00",
-        color: "#fff"
-      },
-      onClick: e => {
-        e.stopPropagation();
-        onDelete(card.id);
-        setDelConfirm(null);
-      }
-    }, "YES"), /*#__PURE__*/React.createElement("button", {
-      style: S.btnSmall,
-      onClick: e => {
-        e.stopPropagation();
-        setDelConfirm(null);
-      }
-    }, "NO")) : /*#__PURE__*/React.createElement("button", {
-      style: {
-        ...S.btnSmall,
-        color: "#c00"
-      },
-      onClick: e => {
-        e.stopPropagation();
-        setDelConfirm(card.id);
-      }
-    }, "DELETE"))));
-  })));
-}
-
-/* ── Quiz ── */
-function Quiz({
-  state,
-  setState,
-  onEnd
-}) {
-  const [answer, setAnswer] = useState("");
-  const {
-    mode,
-    cards: qCards,
-    index,
-    revealed,
-    score,
-    total
-  } = state;
-  const card = qCards[index];
-  if (!card) return /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      paddingTop: 80,
-      animation: "fadeIn .4s ease"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      letterSpacing: "0.3em",
-      color: "#bbb",
-      marginBottom: 16
-    }
-  }, "COMPLETED"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 56,
-      fontWeight: 300,
-      letterSpacing: "0.05em"
-    }
-  }, score, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 20,
-      color: "#ccc"
-    }
-  }, "/", total)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: "#999",
-      marginTop: 8,
-      letterSpacing: "0.1em"
-    }
-  }, "CORRECT ANSWERS"), /*#__PURE__*/React.createElement("button", {
-    style: {
-      ...S.btnPrimary,
-      marginTop: 40,
-      width: 200
-    },
-    onClick: onEnd
-  }, "HOME"));
-  const pct = index / total * 100;
-  const reveal = () => setState(s => ({
-    ...s,
-    revealed: true
-  }));
-  const next = correct => {
-    setState(s => ({
-      ...s,
-      score: correct ? s.score + 1 : s.score,
-      index: s.index + 1,
-      revealed: false
-    }));
-    setAnswer("");
-  };
-  const faceImg = getFaceImg(card.images);
-  const hasImages = card.images && card.images.length > 0;
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      animation: "fadeIn .3s ease"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.progressTrack
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...S.progressBar,
-      width: `${pct}%`
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginTop: 10,
-      fontSize: 10,
-      color: "#999",
-      letterSpacing: "0.12em"
-    }
-  }, /*#__PURE__*/React.createElement("span", null, index + 1, " / ", total), /*#__PURE__*/React.createElement("span", {
-    style: S.tag
-  }, state.collection === "ALL" ? "ALL" : state.collection), /*#__PURE__*/React.createElement("span", null, "SCORE ", score), /*#__PURE__*/React.createElement("button", {
-    style: S.btnSmall,
-    onClick: onEnd
-  }, "QUIT"))), /*#__PURE__*/React.createElement("div", {
-    style: S.quizCard
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.quizLabel
-  }, mode === "img2name" ? "このフレームの名前は？" : mode === "name2feat" ? "このフレームの特徴は？" : "このフレームについて答えてください"), mode === "img2name" && (faceImg ? /*#__PURE__*/React.createElement("img", {
-    src: faceImg,
-    alt: "",
-    style: S.quizImg
-  }) : /*#__PURE__*/React.createElement("div", {
-    style: S.quizNoImg
-  }, "NO IMAGE")), mode === "name2feat" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: S.quizBigName
-  }, card.name), card.reading && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      color: "#999",
-      marginBottom: 16
-    }
-  }, card.reading)), mode === "random" && !revealed && (faceImg ? /*#__PURE__*/React.createElement("img", {
-    src: faceImg,
-    alt: "",
-    style: S.quizImg
-  }) : /*#__PURE__*/React.createElement("div", {
-    style: S.quizBigName
-  }, card.name)), !revealed ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 24
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    style: {
-      ...S.input,
-      textAlign: "center",
-      marginBottom: 16
-    },
-    value: answer,
-    onChange: e => setAnswer(e.target.value),
-    placeholder: "\u7B54\u3048\u3092\u5165\u529B\uFF08\u4EFB\u610F\uFF09",
-    onKeyDown: e => e.key === "Enter" && reveal()
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 10,
-      justifyContent: "center"
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    style: S.btnPrimary,
-    onClick: reveal
-  }, "SHOW ANSWER"), /*#__PURE__*/React.createElement("button", {
-    style: S.btnSecondary,
-    onClick: () => next(false)
-  }, "SKIP"))) : /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: S.answerBox
-  }, hasImages && mode !== "img2name" && /*#__PURE__*/React.createElement(ImageGallery, {
-    images: card.images,
-    maxHeight: 180,
-    style: {
-      marginBottom: 16
-    }
-  }), mode === "img2name" && card.images && card.images.filter(i => i.type === "detail").length > 0 && /*#__PURE__*/React.createElement(ImageGallery, {
-    images: card.images.filter(i => i.type === "detail"),
-    maxHeight: 140,
-    style: {
-      marginBottom: 16
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 20,
-      fontWeight: 600,
-      letterSpacing: "0.1em"
-    }
-  }, card.name), card.reading && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: "#999",
-      marginTop: 4
-    }
-  }, card.reading), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 6,
-      justifyContent: "center",
-      marginTop: 12
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: S.tag
-  }, card.collection), /*#__PURE__*/React.createElement("span", {
-    style: S.tag
-  }, card.shape)), card.features && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      color: "#666",
-      marginTop: 16,
-      lineHeight: 1.8,
-      borderTop: "1px solid #eee",
-      paddingTop: 14
-    }
-  }, card.features), card.price > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      color: "#999",
-      marginTop: 10
-    }
-  }, "\xA5", Number(card.price).toLocaleString(), " (\u7A0E\u8FBC \xA5", Math.floor(card.price * 1.1).toLocaleString(), ")")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 10,
-      marginTop: 20
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    style: S.btnCorrect,
-    onClick: () => next(true)
-  }, "CORRECT"), /*#__PURE__*/React.createElement("button", {
-    style: S.btnWrong,
-    onClick: () => next(false)
-  }, "WRONG")))));
-}
-
-/* ─── Styles ─── */
-const S = {
-  app: {
-    fontFamily: "'DM Sans', 'Noto Sans JP', sans-serif",
-    background: "#fff",
-    minHeight: "100vh",
-    color: "#1a1a1a",
-    WebkitFontSmoothing: "antialiased"
-  },
-  toast: {
-    position: "fixed",
-    top: 16,
-    left: "50%",
-    transform: "translateX(-50%)",
-    background: "#1a1a1a",
-    color: "#fff",
-    padding: "10px 32px",
-    fontSize: 11,
-    letterSpacing: "0.14em",
-    zIndex: 9999,
-    animation: "fadeIn .25s ease"
-  },
-  header: {
-    background: "#fff",
-    borderBottom: "1px solid #e8e8e8",
-    position: "sticky",
-    top: 0,
-    zIndex: 100
-  },
-  headerInner: {
-    maxWidth: 600,
-    margin: "0 auto",
-    padding: "14px 20px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  logo: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    cursor: "pointer"
-  },
-  logoIcon: {
-    fontSize: 16,
-    fontWeight: 600,
-    width: 30,
-    height: 30,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    border: "1.5px solid #1a1a1a"
-  },
-  logoTitle: {
-    fontSize: 14,
-    fontWeight: 600,
-    letterSpacing: "0.28em",
-    lineHeight: 1
-  },
-  logoSub: {
-    fontSize: 7,
-    letterSpacing: "0.3em",
-    color: "#aaa",
-    marginTop: 3
-  },
-  nav: {
-    display: "flex",
-    gap: 2
-  },
-  navBtn: {
-    background: "none",
-    border: "none",
-    padding: "7px 11px",
-    fontSize: 10,
-    letterSpacing: "0.14em",
-    cursor: "pointer",
-    color: "#aaa",
-    fontWeight: 500,
-    transition: "all .2s"
-  },
-  navActive: {
-    color: "#1a1a1a",
-    borderBottom: "1.5px solid #1a1a1a"
-  },
-  main: {
-    maxWidth: 600,
-    margin: "0 auto",
-    padding: "24px 20px 100px"
-  },
-  hero: {
-    textAlign: "center",
-    padding: "44px 0 32px",
-    position: "relative"
-  },
-  heroDeco: {
-    width: 1,
-    height: 36,
-    background: "#ddd",
-    margin: "0 auto 20px"
-  },
-  heroTitle: {
-    fontSize: 36,
-    fontWeight: 300,
-    letterSpacing: "0.22em",
-    lineHeight: 1.15,
-    margin: 0
-  },
-  heroDesc: {
-    fontSize: 12,
-    color: "#aaa",
-    marginTop: 12,
-    letterSpacing: "0.12em"
-  },
-  heroStat: {
-    display: "inline-flex",
-    flexDirection: "column",
-    alignItems: "center",
-    marginTop: 28,
-    padding: "14px 40px",
-    border: "1px solid #e8e8e8"
-  },
-  heroStatNum: {
-    fontSize: 34,
-    fontWeight: 300,
-    letterSpacing: "0.05em"
-  },
-  heroStatLabel: {
-    fontSize: 8,
-    letterSpacing: "0.28em",
-    color: "#bbb",
-    marginTop: 4
-  },
-  divider: {
-    display: "flex",
-    alignItems: "center",
-    gap: 20,
-    margin: "36px 0 20px"
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    background: "#e8e8e8"
-  },
-  dividerText: {
-    fontSize: 9,
-    letterSpacing: "0.28em",
-    color: "#bbb",
-    fontWeight: 500
-  },
-  modeGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 1,
-    background: "#e8e8e8",
-    border: "1px solid #e8e8e8"
-  },
-  modeCard: {
-    background: "#fff",
-    padding: "22px 18px",
-    textAlign: "left",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    transition: "all .2s",
-    position: "relative",
-    animation: "slideUp .35s ease both",
-    border: "none"
-  },
-  modeNum: {
-    fontSize: 9,
-    color: "#ccc",
-    letterSpacing: "0.2em",
-    marginBottom: 10,
-    fontWeight: 500
-  },
-  modeTitle: {
-    fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: "0.12em",
-    marginBottom: 6
-  },
-  modeDesc: {
-    fontSize: 11,
-    color: "#999",
-    lineHeight: 1.6
-  },
-  modeArrow: {
-    position: "absolute",
-    bottom: 16,
-    right: 18,
-    fontSize: 14,
-    color: "#ddd",
-    fontWeight: 300
-  },
-  registerCta: {
-    width: "100%",
-    padding: 16,
-    marginTop: 20,
-    background: "#1a1a1a",
-    color: "#fff",
-    border: "none",
-    fontSize: 11,
-    letterSpacing: "0.14em",
-    fontWeight: 500,
-    cursor: "pointer",
-    fontFamily: "inherit",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8
-  },
-  ctaPlus: {
-    fontSize: 16,
-    fontWeight: 300
-  },
-  /* QuizSetup */
-  backBtn: {
-    background: "none",
-    border: "1px solid #e0e0e0",
-    width: 32,
-    height: 32,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    fontSize: 14,
-    fontFamily: "inherit",
-    color: "#999"
-  },
-  colPickBtn: {
-    width: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "16px 18px",
-    background: "#fff",
-    border: "none",
-    borderBottom: "1px solid #f0f0f0",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    textAlign: "left",
-    transition: "all .15s"
-  },
-  colPickInfo: {
-    flex: 1
-  },
-  colPickName: {
-    fontSize: 12,
-    fontWeight: 600,
-    letterSpacing: "0.1em"
-  },
-  colPickCount: {
-    fontSize: 11,
-    color: "#aaa",
-    letterSpacing: "0.08em",
-    marginTop: 3
-  },
-  colPickArrow: {
-    fontSize: 14,
-    color: "#ddd",
-    fontWeight: 300
-  },
-  /* Data export/import */
-  dataRow: {
-    display: "flex",
-    gap: 1,
-    background: "#e8e8e8",
-    border: "1px solid #e8e8e8"
-  },
-  dataBtn: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    padding: "16px 18px",
-    background: "#fff",
-    border: "none",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    textAlign: "left",
-    transition: "all .15s"
-  },
-  dataBtnIcon: {
-    fontSize: 16,
-    fontWeight: 300,
-    color: "#999",
-    width: 32,
-    height: 32,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    border: "1px solid #e8e8e8"
-  },
-  dataBtnTitle: {
-    fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: "0.12em"
-  },
-  dataBtnDesc: {
-    fontSize: 10,
-    color: "#aaa",
-    marginTop: 2
-  },
-  panelHeader: {
-    marginBottom: 28
-  },
-  panelTitle: {
-    fontSize: 13,
-    fontWeight: 600,
-    letterSpacing: "0.22em",
-    margin: 0
-  },
-  panelLine: {
-    width: 24,
-    height: 1.5,
-    background: "#1a1a1a",
-    marginTop: 8
-  },
-  /* Image slots */
-  imgGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 8,
-    marginBottom: 12
-  },
-  imgSlot: {
-    position: "relative",
-    border: "1px solid #e8e8e8",
-    overflow: "hidden"
-  },
-  imgSlotPreview: {
-    width: "100%",
-    height: 100,
-    objectFit: "cover",
-    display: "block"
-  },
-  imgSlotLabel: {
-    fontSize: 8,
-    letterSpacing: "0.18em",
-    color: "#999",
-    fontWeight: 600,
-    textAlign: "center",
-    padding: "5px 0",
-    borderTop: "1px solid #eee"
-  },
-  imgSlotRemove: {
-    position: "absolute",
-    top: 4,
-    right: 4,
-    background: "rgba(0,0,0,.5)",
-    color: "#fff",
-    border: "none",
-    width: 20,
-    height: 20,
-    cursor: "pointer",
-    fontSize: 12,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    lineHeight: 1
-  },
-  imgAddRow: {
-    display: "flex",
-    gap: 8
-  },
-  imgAddBtn: {
-    flex: 1,
-    padding: "18px 12px",
-    border: "1px dashed #ddd",
-    background: "#fafafa",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 4
-  },
-  imgAddPlus: {
-    fontSize: 18,
-    fontWeight: 300,
-    color: "#ccc",
-    lineHeight: 1
-  },
-  imgAddLabel: {
-    fontSize: 10,
-    fontWeight: 600,
-    letterSpacing: "0.12em",
-    color: "#999"
-  },
-  imgAddDesc: {
-    fontSize: 10,
-    color: "#bbb"
-  },
-  /* Gallery dots */
-  galleryDots: {
-    display: "flex",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 10
-  },
-  galleryDot: {
-    width: 22,
-    height: 22,
-    border: "none",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 0,
-    transition: "all .2s"
-  },
-  galleryDotLabel: {
-    fontSize: 8,
-    fontWeight: 600,
-    letterSpacing: "0.05em",
-    color: "#fff"
-  },
-  label: {
-    display: "block",
-    fontSize: 9,
-    fontWeight: 600,
-    letterSpacing: "0.18em",
-    color: "#999",
-    marginBottom: 6
-  },
-  input: {
-    width: "100%",
-    padding: "10px 12px",
-    border: "1px solid #e0e0e0",
-    fontSize: 13,
-    fontFamily: "inherit",
-    background: "#fff",
-    color: "#1a1a1a",
-    boxSizing: "border-box",
-    letterSpacing: "0.02em"
-  },
-  textarea: {
-    width: "100%",
-    padding: "10px 12px",
-    border: "1px solid #e0e0e0",
-    fontSize: 13,
-    fontFamily: "inherit",
-    background: "#fff",
-    color: "#1a1a1a",
-    resize: "vertical",
-    boxSizing: "border-box"
-  },
-  row: {
-    display: "flex",
-    gap: 12
-  },
-  addBtn: {
-    padding: "8px 14px",
-    background: "#fff",
-    border: "1px solid #e0e0e0",
-    cursor: "pointer",
-    fontSize: 14,
-    fontFamily: "inherit",
-    fontWeight: 300
-  },
-  btnPrimary: {
-    flex: 1,
-    padding: "13px 24px",
-    background: "#1a1a1a",
-    color: "#fff",
-    border: "none",
-    fontSize: 10,
-    fontWeight: 500,
-    letterSpacing: "0.16em",
-    cursor: "pointer",
-    fontFamily: "inherit"
-  },
-  btnSecondary: {
-    padding: "13px 24px",
-    background: "#fff",
-    color: "#1a1a1a",
-    border: "1px solid #e0e0e0",
-    fontSize: 10,
-    fontWeight: 500,
-    letterSpacing: "0.16em",
-    cursor: "pointer",
-    fontFamily: "inherit"
-  },
-  btnSmall: {
-    padding: "5px 14px",
-    background: "#f5f5f5",
-    border: "none",
-    fontSize: 10,
-    letterSpacing: "0.1em",
-    cursor: "pointer",
-    fontFamily: "inherit"
-  },
-  btnCorrect: {
-    flex: 1,
-    padding: "14px",
-    background: "#1a1a1a",
-    color: "#fff",
-    border: "none",
-    fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: "0.14em",
-    cursor: "pointer",
-    fontFamily: "inherit"
-  },
-  btnWrong: {
-    flex: 1,
-    padding: "14px",
-    background: "#fff",
-    color: "#1a1a1a",
-    border: "1px solid #e0e0e0",
-    fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: "0.14em",
-    cursor: "pointer",
-    fontFamily: "inherit"
-  },
-  empty: {
-    textAlign: "center",
-    padding: 60
-  },
-  listCard: {
-    background: "#fff",
-    padding: 16,
-    cursor: "pointer",
-    transition: "all .15s",
-    borderBottom: "1px solid #f0f0f0"
-  },
-  listTop: {
-    display: "flex",
-    alignItems: "center",
-    gap: 14
-  },
-  listThumb: {
-    width: 50,
-    height: 50,
-    objectFit: "cover",
-    flexShrink: 0
-  },
-  listName: {
-    fontSize: 13,
-    fontWeight: 600,
-    letterSpacing: "0.06em"
-  },
-  listReading: {
-    fontSize: 11,
-    color: "#aaa",
-    marginTop: 2
-  },
-  tag: {
-    fontSize: 9,
-    padding: "3px 8px",
-    background: "#f7f7f7",
-    letterSpacing: "0.08em",
-    color: "#999",
-    fontWeight: 500
-  },
-  listPrice: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: "#aaa",
-    whiteSpace: "nowrap",
-    letterSpacing: "0.03em"
-  },
-  listExpand: {
-    marginTop: 14,
-    paddingTop: 14,
-    borderTop: "1px solid #f0f0f0"
-  },
-  listFeatures: {
-    fontSize: 12,
-    lineHeight: 1.8,
-    color: "#777",
-    marginBottom: 8
-  },
-  progressTrack: {
-    height: 1.5,
-    background: "#eee"
-  },
-  progressBar: {
-    height: "100%",
-    background: "#1a1a1a",
-    transition: "width .4s ease"
-  },
-  quizCard: {
-    background: "#fff",
-    border: "1px solid #e8e8e8",
-    padding: 32,
-    textAlign: "center"
-  },
-  quizLabel: {
-    fontSize: 12,
-    color: "#aaa",
-    letterSpacing: "0.1em",
-    marginBottom: 24
-  },
-  quizImg: {
-    maxWidth: "100%",
-    maxHeight: 240,
-    objectFit: "contain",
-    marginBottom: 16
-  },
-  quizNoImg: {
-    width: "100%",
-    height: 160,
-    background: "#fafafa",
-    border: "1px solid #eee",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#ccc",
-    fontSize: 10,
-    letterSpacing: "0.18em",
-    marginBottom: 16
-  },
-  quizBigName: {
-    fontSize: 28,
-    fontWeight: 300,
-    letterSpacing: "0.14em",
-    marginBottom: 8
-  },
-  answerBox: {
-    background: "#fafafa",
-    border: "1px solid #eee",
-    padding: 24
-  }
+// ── Storage (localStorage) ────────────────────────────────────
+const storage = {
+  get: (key) => { try { return localStorage.getItem(key); } catch { return null; } },
+  set: (key, val) => { try { localStorage.setItem(key, val); } catch {} },
 };
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App, null));
-}catch(e){document.getElementById("status").innerHTML="<b style='color:red'>App Error:</b><br>"+e.message}}
+
+// ── SVG Icons ────────────────────────────────────────────────
+const IconCamera   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>;
+const IconChevronL = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>;
+const IconChevronR = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
+const IconClose    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+const IconTrash    = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>;
+const IconArrow    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
+const IconCheck    = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+
+// ── Main App ─────────────────────────────────────────────────
+function ShiftManager() {
+  const today = new Date();
+  const [year, setYear]           = useState(today.getFullYear());
+  const [month, setMonth]         = useState(today.getMonth() + 1);
+  const [view, setView]           = useState("calendar");
+  const [shifts, setShifts]       = useState({});
+  const [editDay, setEditDay]     = useState(null);
+  const [editData, setEditData]   = useState(null);
+  const [loaded, setLoaded]       = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const storageKey = `shifts:${year}-${String(month).padStart(2,"0")}`;
+
+  useEffect(() => {
+    setLoaded(false);
+    const raw = storage.get(storageKey);
+    if (raw) {
+      setShifts(JSON.parse(raw));
+    } else if (year === 2026 && month === 3) {
+      setShifts(MARCH_2026_DATA);
+      storage.set(storageKey, JSON.stringify(MARCH_2026_DATA));
+    } else {
+      setShifts({});
+    }
+    setLoaded(true);
+  }, [year, month]);
+
+  const saveShifts = useCallback((s) => {
+    setShifts(s);
+    storage.set(storageKey, JSON.stringify(s));
+  }, [storageKey]);
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstDow    = new Date(year, month - 1, 1).getDay();
+
+  const stats = (() => {
+    let work = 0, off = 0, totalH = 0, hasTime = false;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const s = shifts[dateKey(year, month, d)];
+      if (!s) continue;
+      if (s.status === "休日") off++;
+      else { work++; const h = calcHours(s.startTime, s.endTime); if (h) { totalH += h; hasTime = true; } }
+    }
+    return { work, off, totalH: hasTime ? totalH : null };
+  })();
+
+  function openEdit(day) {
+    const k = dateKey(year, month, day);
+    setEditDay(day);
+    setEditData(shifts[k] || { status: "出勤", startTime: "", endTime: "", memo: "" });
+    setConfirmDelete(false);
+  }
+  function saveEdit() {
+    saveShifts({ ...shifts, [dateKey(year, month, editDay)]: { ...editData } });
+    setEditDay(null);
+  }
+  function deleteEntry() {
+    const n = { ...shifts };
+    delete n[dateKey(year, month, editDay)];
+    saveShifts(n);
+    setEditDay(null);
+    setConfirmDelete(false);
+  }
+  const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
+  const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else setMonth(m => m + 1); };
+  const goToday   = () => { setYear(today.getFullYear()); setMonth(today.getMonth() + 1); };
+
+  const todayY = today.getFullYear();
+  const todayM = today.getMonth() + 1;
+  const todayD = today.getDate();
+  const isCurrentMonth = year === todayY && month === todayM;
+  const todayShift = isCurrentMonth ? shifts[dateKey(todayY, todayM, todayD)] : null;
+
+  const labelSm = { fontSize: 9, letterSpacing: 3, color: "#aaa", textTransform: "uppercase", marginBottom: 8, display: "block" };
+
+  return (
+    <div className="shift-app">
+      {/* ── Header ─────────────────────────────────── */}
+      <div style={{ background: "#fff", borderBottom: "1px solid #e0dedd" }} className="safe-top">
+        <div style={{ padding: "16px 20px 0" }}>
+
+          {/* Title row */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 9, letterSpacing: 4, color: "#999", textTransform: "uppercase", marginBottom: 4 }}>Shift Manager</div>
+              <div style={{ fontSize: 22, fontWeight: 300, letterSpacing: 1 }}>成田</div>
+              {/* Today's shift */}
+              <div style={{ marginTop: 6, fontSize: 11, color: "#aaa", display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#ccc" }}>Today</span>
+                {todayShift
+                  ? todayShift.status === "休日"
+                    ? <span style={{ color: "#ccc", letterSpacing: 1 }}>Off</span>
+                    : <span style={{ color: "#111", fontWeight: 400 }}>
+                        {todayShift.startTime || "—"}{todayShift.endTime ? ` – ${todayShift.endTime}` : ""}
+                        {todayShift.memo ? <span style={{ color: "#bbb", fontSize: 10, marginLeft: 6 }}>{todayShift.memo}</span> : null}
+                      </span>
+                  : <span style={{ color: "#ddd" }}>—</span>
+                }
+              </div>
+            </div>
+            <button onClick={() => setShowImport(true)} className="icon-btn" style={{
+              display: "flex", alignItems: "center", gap: 6, background: "none",
+              border: "1px solid #111", padding: "6px 12px", cursor: "pointer",
+              fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: "#111", marginTop: 4
+            }}>
+              <IconCamera /> Scan
+            </button>
+          </div>
+
+          {/* Month nav */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <button onClick={prevMonth} className="icon-btn" style={{ background: "none", border: "none", cursor: "pointer", color: "#111", padding: 4 }}><IconChevronL /></button>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 400, letterSpacing: 2, textTransform: "uppercase" }}>{year} / {String(month).padStart(2,"0")}</span>
+              {!isCurrentMonth && (
+                <button onClick={goToday} style={{
+                  background: "none", border: "1px solid #ddd", padding: "2px 8px", cursor: "pointer",
+                  fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color: "#aaa"
+                }}>Today</button>
+              )}
+            </div>
+            <button onClick={nextMonth} className="icon-btn" style={{ background: "none", border: "none", cursor: "pointer", color: "#111", padding: 4 }}><IconChevronR /></button>
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: "1px solid #e0dedd" }}>
+            {[["WORK", stats.work], ["OFF", stats.off], ["HOURS", stats.totalH !== null ? formatHours(stats.totalH) : "—"]].map(([label, value], i) => (
+              <div key={i} style={{ padding: "12px 0", textAlign: "center", borderRight: i < 2 ? "1px solid #e0dedd" : "none" }}>
+                <div style={{ fontSize: 8, letterSpacing: 3, color: "#aaa", textTransform: "uppercase", marginBottom: 3 }}>{label}</div>
+                <div style={{ fontSize: 17, fontWeight: 300 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: "flex", borderTop: "1px solid #e0dedd" }}>
+            {["calendar", "list"].map(v => (
+              <button key={v} onClick={() => setView(v)} style={{
+                flex: 1, padding: "10px 0", background: "none", border: "none", cursor: "pointer",
+                fontSize: 9, letterSpacing: 3, textTransform: "uppercase",
+                color: view === v ? "#111" : "#bbb",
+                borderBottom: view === v ? "1.5px solid #111" : "1.5px solid transparent",
+                transition: "all 0.2s"
+              }}>{v === "calendar" ? "Calendar" : "List"}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Content ────────────────────────────────── */}
+      <div style={{ padding: "20px 16px" }} className="safe-bot">
+        {!loaded
+          ? <div style={{ textAlign: "center", padding: 60, fontSize: 11, letterSpacing: 2, color: "#bbb", textTransform: "uppercase" }}>Loading</div>
+          : view === "calendar"
+            ? <CalendarView year={year} month={month} daysInMonth={daysInMonth} firstDow={firstDow} shifts={shifts} onDayClick={openEdit} />
+            : <ListView year={year} month={month} daysInMonth={daysInMonth} shifts={shifts} onDayClick={openEdit} />
+        }
+      </div>
+
+      {/* ── Edit Modal ─────────────────────────────── */}
+      {editDay && editData && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}
+          onClick={() => { setEditDay(null); setConfirmDelete(false); }}>
+          <div style={{ background: "#fff", width: "100%", maxWidth: 480, padding: "28px 24px 40px" }} onClick={e => e.stopPropagation()}>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+              <div>
+                <div style={{ fontSize: 9, letterSpacing: 3, color: "#aaa", textTransform: "uppercase", marginBottom: 4 }}>{year} / {String(month).padStart(2,"0")}</div>
+                <div style={{ fontSize: 24, fontWeight: 300, letterSpacing: 0.5 }}>{editDay} {WEEKDAY_JP[new Date(year, month - 1, editDay).getDay()]}</div>
+              </div>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                {shifts[dateKey(year, month, editDay)] && !confirmDelete && (
+                  <button onClick={() => setConfirmDelete(true)} className="icon-btn" style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b", padding: 4 }}><IconTrash /></button>
+                )}
+                <button onClick={() => { setEditDay(null); setConfirmDelete(false); }} className="icon-btn" style={{ background: "none", border: "none", cursor: "pointer", color: "#111", padding: 4 }}><IconClose /></button>
+              </div>
+            </div>
+
+            {confirmDelete ? (
+              <div>
+                <div style={{ fontSize: 12, color: "#666", marginBottom: 20, lineHeight: 1.7 }}>{month}/{editDay} のデータを削除しますか？<br />この操作は取り消せません。</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setConfirmDelete(false)} className="ghost-btn" style={{ flex: 1, padding: "12px 0", background: "#f5f4f2", border: "none", cursor: "pointer", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "#666" }}>Cancel</button>
+                  <button onClick={deleteEntry} style={{ flex: 2, padding: "12px 0", background: "#c0392b", border: "none", cursor: "pointer", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "#fff" }}>Delete</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 20 }}>
+                  <label style={labelSm}>Status</label>
+                  <div style={{ display: "flex", border: "1px solid #e0dedd" }}>
+                    {["出勤", "休日"].map((s, i) => (
+                      <button key={s} onClick={() => setEditData({ ...editData, status: s })} style={{
+                        flex: 1, padding: "10px 0", background: editData.status === s ? "#111" : "#fff",
+                        border: "none", borderRight: i === 0 ? "1px solid #e0dedd" : "none",
+                        cursor: "pointer", fontSize: 11, letterSpacing: 2, textTransform: "uppercase",
+                        color: editData.status === s ? "#fff" : "#aaa", transition: "all 0.15s"
+                      }}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {editData.status === "出勤" && (
+                  <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+                    {[["開始", "startTime"], ["終了", "endTime"]].map(([label, key]) => (
+                      <div key={key} style={{ flex: 1 }}>
+                        <label style={labelSm}>{label}</label>
+                        <input type="time" value={editData[key]} onChange={e => setEditData({ ...editData, [key]: e.target.value })}
+                          style={{ width: "100%", padding: "10px 12px", border: "1px solid #e0dedd", fontSize: 15, fontWeight: 300, background: "#fafaf9", outline: "none" }} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {editData.status === "出勤" && editData.startTime && editData.endTime && (() => {
+                  const h = calcHours(editData.startTime, editData.endTime);
+                  return h ? (
+                    <div style={{ display: "flex", alignItems: "center", marginBottom: 20, padding: "10px 12px", background: "#f5f4f2", borderLeft: "2px solid #111" }}>
+                      <span style={{ fontSize: 9, letterSpacing: 3, color: "#999", textTransform: "uppercase" }}>Duration</span>
+                      <span style={{ fontSize: 14, fontWeight: 300, marginLeft: "auto" }}>{formatHours(h)}</span>
+                    </div>
+                  ) : null;
+                })()}
+
+                <div style={{ marginBottom: 24 }}>
+                  <label style={labelSm}>Memo</label>
+                  <textarea value={editData.memo} onChange={e => setEditData({ ...editData, memo: e.target.value })}
+                    placeholder="Add a note..." rows={2}
+                    style={{ width: "100%", padding: "10px 12px", border: "1px solid #e0dedd", fontSize: 13, resize: "none", background: "#fafaf9", outline: "none", fontWeight: 300, color: "#333", lineHeight: 1.6 }} />
+                </div>
+
+                <button onClick={saveEdit} className="primary-btn" style={{ width: "100%", padding: "13px 0", background: "#111", color: "#fff", border: "none", cursor: "pointer", fontSize: 10, letterSpacing: 3, textTransform: "uppercase" }}>Save</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+    </div>
+  );
+}
+
+// ── Import Modal ─────────────────────────────────────────────
+function ImportModal({ onClose }) {
+  const [copied, setCopied] = useState(false);
+  const prompt = `シフト表のスクショを添付します。「成田」の列を読み取って、Googleカレンダーに追加してください。`;
+
+  useEffect(() => {
+    navigator.clipboard.writeText(prompt).catch(() => {}).finally(() => setCopied(true));
+  }, []);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }} onClick={onClose}>
+      <div style={{ background: "#fff", width: "100%", maxWidth: 480, padding: "28px 24px 44px" }} onClick={e => e.stopPropagation()}>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: 4, color: "#aaa", textTransform: "uppercase", marginBottom: 4 }}>Scan</div>
+            <div style={{ fontSize: 20, fontWeight: 300 }}>Import Shift</div>
+          </div>
+          <button onClick={onClose} className="icon-btn" style={{ background: "none", border: "none", cursor: "pointer", color: "#111", padding: 4 }}><IconClose /></button>
+        </div>
+
+        <div style={{
+          padding: "14px 16px", marginBottom: 24,
+          background: copied ? "#f5f4f2" : "#fafaf9",
+          borderLeft: `2px solid ${copied ? "#111" : "#ddd"}`,
+          transition: "all 0.3s"
+        }}>
+          <div style={{ fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: copied ? "#111" : "#bbb", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+            {copied && <IconCheck />} {copied ? "Prompt Copied!" : "Copying..."}
+          </div>
+          <div style={{ fontSize: 12, color: "#777", lineHeight: 1.7, fontFamily: "monospace" }}>{prompt}</div>
+        </div>
+
+        {["スクショを撮る", "Claudeのチャット画面へ移動", "画像を添付 → 貼り付けて送信"].map((s, i) => (
+          <div key={i} style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 14 }}>
+            <div style={{ fontSize: 10, letterSpacing: 1, color: "#bbb", minWidth: 20 }}>0{i+1}</div>
+            <div style={{ flex: 1, height: 1, background: "#e0dedd", marginTop: 8, maxWidth: 16 }} />
+            <div style={{ flex: 1, fontSize: 13, fontWeight: 300, color: "#444", lineHeight: 1.6 }}>{s}</div>
+          </div>
+        ))}
+
+        <button onClick={onClose} className="primary-btn" style={{
+          width: "100%", marginTop: 8, padding: "13px 0", background: "#111", color: "#fff",
+          border: "none", cursor: "pointer", fontSize: 10, letterSpacing: 3, textTransform: "uppercase"
+        }}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Calendar View ────────────────────────────────────────────
+function CalendarView({ year, month, daysInMonth, firstDow, shifts, onDayClick }) {
+  const today = new Date();
+  const todayY = today.getFullYear();
+  const todayM = today.getMonth() + 1;
+  const todayD = today.getDate();
+
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div style={{ background: "#fff", padding: "16px 12px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 8 }}>
+        {WEEKDAY_JP.map((d, i) => (
+          <div key={d} style={{ textAlign: "center", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: i === 0 ? "#c0392b" : i === 6 ? "#555" : "#bbb", padding: "4px 0" }}>{d}</div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} />;
+          const dow = (firstDow + day - 1) % 7;
+          const k = dateKey(year, month, day);
+          const data = shifts[k];
+          const isOff = data?.status === "休日";
+          const isToday = year === todayY && month === todayM && day === todayD;
+          return (
+            <button key={i} onClick={() => onDayClick(day)} className="cal-day" style={{
+              border: "none", padding: "8px 4px 10px", cursor: "pointer",
+              background: isToday ? "#f0f0ef" : !data ? "transparent" : isOff ? "#f5f4f2" : "#fff",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minHeight: 60,
+              borderTop: isToday ? "2px solid #111" : isOff ? "2px solid #ddd" : data ? "2px solid #111" : "2px solid #eee",
+              outline: isToday ? "none" : "none",
+              transition: "background 0.15s",
+              position: "relative"
+            }}>
+              <span style={{
+                fontSize: 13, fontWeight: isToday ? 600 : 300,
+                color: isToday ? "#111" : !data ? "#ccc" : isOff ? "#ccc" : dow === 0 ? "#c0392b" : "#111"
+              }}>{day}</span>
+              {isToday && <span style={{ position: "absolute", bottom: 4, width: 4, height: 4, background: "#111", borderRadius: "50%" }} />}
+              {data && !isOff && <span style={{ fontSize: 10, color: "#888", fontWeight: 300 }}>{data.startTime}</span>}
+              {data && !isOff && data.endTime && <span style={{ fontSize: 9, color: "#bbb" }}>{data.endTime}</span>}
+              {isOff && <span style={{ fontSize: 8, letterSpacing: 1.5, color: "#ccc", textTransform: "uppercase" }}>Off</span>}
+              {data?.memo && !isOff && <span style={{ width: 3, height: 3, background: "#111", borderRadius: "50%" }} />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── List View ────────────────────────────────────────────────
+function ListView({ year, month, daysInMonth, shifts, onDayClick }) {
+  return (
+    <div style={{ background: "#fff" }}>
+      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+        const dow = new Date(year, month - 1, day).getDay();
+        const k = dateKey(year, month, day);
+        const data = shifts[k];
+        const isOff = data?.status === "休日";
+        const hours = data && !isOff ? calcHours(data.startTime, data.endTime) : null;
+        return (
+          <button key={day} onClick={() => onDayClick(day)} className="list-row" style={{
+            display: "flex", alignItems: "center", background: "transparent", border: "none",
+            borderBottom: "1px solid #f0eeec", padding: "12px 16px", cursor: "pointer", gap: 16,
+            width: "100%", textAlign: "left", transition: "background 0.1s"
+          }}>
+            <div style={{ width: 48, flexShrink: 0, display: "flex", alignItems: "baseline", gap: 4 }}>
+              <span style={{ fontSize: 17, fontWeight: 300, color: dow === 0 ? "#c0392b" : "#111" }}>{day}</span>
+              <span style={{ fontSize: 9, letterSpacing: 1, color: dow === 0 ? "#c0392b" : "#bbb", textTransform: "uppercase" }}>{WEEKDAY_JP[dow]}</span>
+            </div>
+            <div style={{ flex: 1 }}>
+              {!data
+                ? <span style={{ fontSize: 11, color: "#ddd" }}>—</span>
+                : isOff
+                  ? <span style={{ fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "#bbb" }}>Off</span>
+                  : <div>
+                      <span style={{ fontSize: 13, fontWeight: 300, color: "#333" }}>{data.startTime || "—"}{data.endTime ? ` – ${data.endTime}` : ""}</span>
+                      {hours && <span style={{ fontSize: 10, color: "#bbb", marginLeft: 10, letterSpacing: 1 }}>{formatHours(hours)}</span>}
+                      {data.memo && <div style={{ fontSize: 10, color: "#bbb", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{data.memo}</div>}
+                    </div>
+              }
+            </div>
+            <span style={{ color: "#ddd" }}><IconArrow /></span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Mount ────────────────────────────────────────────────────
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<ShiftManager />);
 </script>
 </body>
 </html>
