@@ -958,13 +958,15 @@ function CollectionGuide({
   })));
 }
 
-/* ── ImageSlots: face + detail (max 3) ── */
+/* ── ImageSlots: face + detail (max 3), file or URL ── */
 function ImageSlots({
   images,
   onChange
 }) {
   const fileRef = useRef(null);
   const [addingType, setAddingType] = useState(null);
+  const [urlMode, setUrlMode] = useState(null);
+  const [urlInput, setUrlInput] = useState("");
   const handleFile = e => {
     const f = e.target.files[0];
     if (!f || !addingType) return;
@@ -979,13 +981,27 @@ function ImageSlots({
     r.readAsDataURL(f);
     e.target.value = "";
   };
+  const handleUrl = () => {
+    if (!urlInput.trim() || !urlMode) return;
+    onChange([...images, {
+      type: urlMode,
+      data: urlInput.trim()
+    }]);
+    setUrlInput("");
+    setUrlMode(null);
+  };
   const remove = idx => onChange(images.filter((_, i) => i !== idx));
-  const startAdd = type => {
+  const startFile = type => {
     setAddingType(type);
+    setUrlMode(null);
     setTimeout(() => fileRef.current && fileRef.current.click(), 50);
   };
+  const startUrl = type => {
+    setUrlMode(type);
+    setAddingType(null);
+    setUrlInput("");
+  };
   const faceImages = images.filter(i => i.type === "face");
-  const detailImages = images.filter(i => i.type === "detail");
   return /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 28
@@ -1006,27 +1022,100 @@ function ImageSlots({
   }, img.type === "face" ? "FACE" : "DETAIL"), /*#__PURE__*/React.createElement("button", {
     style: S.imgSlotRemove,
     onClick: () => remove(idx)
-  }, "\xD7")))), images.length < MAX_IMAGES && /*#__PURE__*/React.createElement("div", {
+  }, "\xD7")))), images.length < MAX_IMAGES && !urlMode && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     style: S.imgAddRow
   }, faceImages.length === 0 && /*#__PURE__*/React.createElement("button", {
     style: S.imgAddBtn,
-    onClick: () => startAdd("face")
+    onClick: () => startFile("face")
   }, /*#__PURE__*/React.createElement("span", {
     style: S.imgAddPlus
   }, "+"), /*#__PURE__*/React.createElement("span", {
     style: S.imgAddLabel
   }, "FACE"), /*#__PURE__*/React.createElement("span", {
     style: S.imgAddDesc
-  }, "\u6B63\u9762")), images.length < MAX_IMAGES && /*#__PURE__*/React.createElement("button", {
+  }, "\u30D5\u30A1\u30A4\u30EB")), images.length < MAX_IMAGES && /*#__PURE__*/React.createElement("button", {
     style: S.imgAddBtn,
-    onClick: () => startAdd("detail")
+    onClick: () => startFile("detail")
   }, /*#__PURE__*/React.createElement("span", {
     style: S.imgAddPlus
   }, "+"), /*#__PURE__*/React.createElement("span", {
     style: S.imgAddLabel
   }, "DETAIL"), /*#__PURE__*/React.createElement("span", {
     style: S.imgAddDesc
-  }, "\u30C7\u30A3\u30C6\u30FC\u30EB"))), /*#__PURE__*/React.createElement("input", {
+  }, "\u30D5\u30A1\u30A4\u30EB"))), /*#__PURE__*/React.createElement("div", {
+    style: S.imgAddRow
+  }, faceImages.length === 0 && /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...S.imgAddBtn,
+      borderStyle: "solid",
+      borderColor: "#e0e0e0"
+    },
+    onClick: () => startUrl("face")
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#ccc"
+    }
+  }, "URL"), /*#__PURE__*/React.createElement("span", {
+    style: S.imgAddLabel
+  }, "FACE"), /*#__PURE__*/React.createElement("span", {
+    style: S.imgAddDesc
+  }, "URL\u304B\u3089\u53D6\u5F97")), images.length < MAX_IMAGES && /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...S.imgAddBtn,
+      borderStyle: "solid",
+      borderColor: "#e0e0e0"
+    },
+    onClick: () => startUrl("detail")
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#ccc"
+    }
+  }, "URL"), /*#__PURE__*/React.createElement("span", {
+    style: S.imgAddLabel
+  }, "DETAIL"), /*#__PURE__*/React.createElement("span", {
+    style: S.imgAddDesc
+  }, "URL\u304B\u3089\u53D6\u5F97")))), urlMode && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "14px",
+      border: "1px solid #e0e0e0",
+      background: "#fafafa"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 600,
+      letterSpacing: "0.14em",
+      color: "#999",
+      marginBottom: 8
+    }
+  }, urlMode === "face" ? "FACE" : "DETAIL", " \u2014 URL\u5165\u529B"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...S.input,
+      marginBottom: 8
+    },
+    value: urlInput,
+    onChange: e => setUrlInput(e.target.value),
+    placeholder: "https://..."
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    style: S.btnPrimary,
+    onClick: handleUrl
+  }, "ADD"), /*#__PURE__*/React.createElement("button", {
+    style: S.btnSecondary,
+    onClick: () => setUrlMode(null)
+  }, "CANCEL"))), /*#__PURE__*/React.createElement("input", {
     ref: fileRef,
     type: "file",
     accept: "image/*",
