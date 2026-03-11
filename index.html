@@ -1165,6 +1165,179 @@ function ImageGallery({
   }, img.type === "face" ? "F" : "D")))));
 }
 
+/* ── ColorSlots: color variants with name + thumbnail ── */
+function ColorSlots({
+  colors,
+  onChange
+}) {
+  const [adding, setAdding] = useState(false);
+  const [colorName, setColorName] = useState("");
+  const [colorImg, setColorImg] = useState("");
+  const colorFileRef = useRef(null);
+  const addColor = () => {
+    if (!colorName.trim()) return;
+    onChange([...colors, {
+      name: colorName.trim(),
+      img: colorImg || ""
+    }]);
+    setColorName("");
+    setColorImg("");
+    setAdding(false);
+  };
+  const handleColorFile = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => setColorImg(ev.target.result);
+    r.readAsDataURL(f);
+    e.target.value = "";
+  };
+  const removeColor = idx => onChange(colors.filter((_, i) => i !== idx));
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: S.label
+  }, "COLORS / \u5C55\u958B\u8272 (", colors.length, ")"), colors.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 4,
+      marginBottom: 8
+    }
+  }, colors.map((c, idx) => /*#__PURE__*/React.createElement("div", {
+    key: idx,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      padding: "6px 10px",
+      border: "1px solid #f0f0f0",
+      background: "#fafafa"
+    }
+  }, c.img && /*#__PURE__*/React.createElement("img", {
+    src: c.img,
+    alt: "",
+    style: {
+      width: 32,
+      height: 32,
+      objectFit: "cover",
+      flexShrink: 0,
+      border: "1px solid #eee"
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 12,
+      letterSpacing: "0.04em"
+    }
+  }, c.name), /*#__PURE__*/React.createElement("button", {
+    onClick: () => removeColor(idx),
+    style: {
+      background: "none",
+      border: "none",
+      color: "#ccc",
+      cursor: "pointer",
+      fontSize: 14,
+      fontFamily: "inherit"
+    }
+  }, "\xD7")))), !adding ? /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...S.imgAddBtn,
+      width: "100%",
+      borderStyle: "dashed"
+    },
+    onClick: () => setAdding(true)
+  }, /*#__PURE__*/React.createElement("span", {
+    style: S.imgAddPlus
+  }, "+"), /*#__PURE__*/React.createElement("span", {
+    style: S.imgAddLabel
+  }, "ADD COLOR")) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 14,
+      border: "1px solid #e0e0e0",
+      background: "#fafafa"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 600,
+      letterSpacing: "0.14em",
+      color: "#999",
+      marginBottom: 8
+    }
+  }, "\u65B0\u3057\u3044\u30AB\u30E9\u30FC\u3092\u8FFD\u52A0"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...S.input,
+      marginBottom: 8
+    },
+    value: colorName,
+    onChange: e => setColorName(e.target.value),
+    placeholder: "e.g. Matte Silver/Black"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    style: S.btnSmall,
+    onClick: () => colorFileRef.current && colorFileRef.current.click()
+  }, "\u30B5\u30E0\u30CD\uFF08\u30D5\u30A1\u30A4\u30EB\uFF09"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#bbb",
+      alignSelf: "center"
+    }
+  }, "or"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...S.input,
+      flex: 1,
+      fontSize: 11
+    },
+    value: colorImg && !colorImg.startsWith("data:") ? colorImg : "",
+    onChange: e => setColorImg(e.target.value),
+    placeholder: "\u753B\u50CFURL"
+  })), colorImg && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("img", {
+    src: colorImg,
+    alt: "",
+    style: {
+      width: 48,
+      height: 48,
+      objectFit: "cover",
+      border: "1px solid #eee"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    style: S.btnPrimary,
+    onClick: addColor
+  }, "ADD"), /*#__PURE__*/React.createElement("button", {
+    style: S.btnSecondary,
+    onClick: () => {
+      setAdding(false);
+      setColorName("");
+      setColorImg("");
+    }
+  }, "CANCEL")), /*#__PURE__*/React.createElement("input", {
+    ref: colorFileRef,
+    type: "file",
+    accept: "image/*",
+    onChange: handleColorFile,
+    style: {
+      display: "none"
+    }
+  })));
+}
+
 /* ── Form ── */
 function Form({
   onSubmit,
@@ -1181,6 +1354,7 @@ function Form({
   const [features, setFeatures] = useState(initial && initial.features || "");
   const [price, setPrice] = useState(initial && initial.price || "");
   const [images, setImages] = useState(initial && initial.images || []);
+  const [colors, setColors] = useState(initial && initial.colors || []);
   const [newCol, setNewCol] = useState("");
   const [showNewCol, setShowNewCol] = useState(false);
   const submit = () => {
@@ -1194,7 +1368,8 @@ function Form({
       frameType,
       features: features.trim(),
       price: price ? Number(price) : 0,
-      images
+      images,
+      colors
     });
   };
   const handleAddCol = () => {
@@ -1378,7 +1553,10 @@ function Form({
       color: "#999",
       whiteSpace: "nowrap"
     }
-  }, "\u7A0E\u8FBC ", taxInc))), /*#__PURE__*/React.createElement("div", {
+  }, "\u7A0E\u8FBC ", taxInc))), /*#__PURE__*/React.createElement(ColorSlots, {
+    colors: colors,
+    onChange: setColors
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 10,
@@ -1554,9 +1732,7 @@ function List({
       style: S.tag
     }, card.collection), /*#__PURE__*/React.createElement("span", {
       style: S.tag
-    }, card.shape), card.images && card.images.length > 0 && /*#__PURE__*/React.createElement("span", {
-      style: S.tag
-    }, card.images.length, " IMG"))), card.price > 0 && /*#__PURE__*/React.createElement("div", {
+    }, card.shape))), card.price > 0 && /*#__PURE__*/React.createElement("div", {
       style: S.listPrice
     }, "\xA5", Number(card.price).toLocaleString())), expanded === card.id && /*#__PURE__*/React.createElement("div", {
       style: S.listExpand
@@ -1566,7 +1742,45 @@ function List({
       style: {
         marginBottom: 14
       }
-    }), card.features && /*#__PURE__*/React.createElement("div", {
+    }), card.colors && card.colors.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9,
+        fontWeight: 600,
+        letterSpacing: "0.18em",
+        color: "#bbb",
+        marginBottom: 6
+      }
+    }, "COLORS (", card.colors.length, ")"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 6,
+        flexWrap: "wrap"
+      }
+    }, card.colors.map((c, ci) => /*#__PURE__*/React.createElement("div", {
+      key: ci,
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 8px",
+        background: "#f7f7f7",
+        fontSize: 10,
+        color: "#666"
+      }
+    }, c.img && /*#__PURE__*/React.createElement("img", {
+      src: c.img,
+      alt: "",
+      style: {
+        width: 20,
+        height: 20,
+        objectFit: "cover",
+        border: "1px solid #eee"
+      }
+    }), /*#__PURE__*/React.createElement("span", null, c.name))))), card.features && /*#__PURE__*/React.createElement("div", {
       style: S.listFeatures
     }, card.features), card.price > 0 && /*#__PURE__*/React.createElement("div", {
       style: {
@@ -1813,7 +2027,35 @@ function Quiz({
     style: S.tag
   }, card.collection), /*#__PURE__*/React.createElement("span", {
     style: S.tag
-  }, card.shape)), card.features && /*#__PURE__*/React.createElement("div", {
+  }, card.shape)), card.colors && card.colors.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      flexWrap: "wrap",
+      justifyContent: "center",
+      marginTop: 10
+    }
+  }, card.colors.map((c, ci) => /*#__PURE__*/React.createElement("div", {
+    key: ci,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 4,
+      padding: "3px 8px",
+      background: "#f0f0f0",
+      fontSize: 10,
+      color: "#666"
+    }
+  }, c.img && /*#__PURE__*/React.createElement("img", {
+    src: c.img,
+    alt: "",
+    style: {
+      width: 16,
+      height: 16,
+      objectFit: "cover",
+      border: "1px solid #ddd"
+    }
+  }), /*#__PURE__*/React.createElement("span", null, c.name)))), card.features && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
       color: "#666",
