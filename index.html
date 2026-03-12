@@ -200,6 +200,10 @@ function App() {
     setCards(p => p.filter(c => c.id !== id));
     showToast("削除しました");
   };
+  const deleteCards = ids => {
+    setCards(p => p.filter(c => !ids.includes(c.id)));
+    showToast(`${ids.length}件削除しました`);
+  };
   const addCollection = name => {
     if (name && !allCollections.includes(name)) setCustomCollections(p => [...p, name]);
   };
@@ -421,6 +425,7 @@ function App() {
       setView("register");
     },
     onDelete: deleteCard,
+    onDeleteMulti: deleteCards,
     filterCollection: filterCollection,
     setFilterCollection: setFilterCollection,
     filterType: filterType,
@@ -1631,6 +1636,7 @@ function List({
   cards,
   onEdit,
   onDelete,
+  onDeleteMulti,
   filterCollection,
   setFilterCollection,
   filterType,
@@ -1641,6 +1647,28 @@ function List({
 }) {
   const [expanded, setExpanded] = useState(null);
   const [delConfirm, setDelConfirm] = useState(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const toggleSelect = id => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);else next.add(id);
+      return next;
+    });
+  };
+  const selectAll = () => setSelected(new Set(cards.map(c => c.id)));
+  const deselectAll = () => setSelected(new Set());
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelected(new Set());
+    setBulkConfirm(false);
+  };
+  const handleBulkDelete = () => {
+    if (selected.size === 0) return;
+    onDeleteMulti([...selected]);
+    exitSelectMode();
+  };
   return /*#__PURE__*/React.createElement("div", {
     style: {
       animation: "fadeIn .35s ease"
@@ -1656,13 +1684,67 @@ function List({
     style: S.panelTitle
   }, "ALL CARDS"), /*#__PURE__*/React.createElement("div", {
     style: S.panelLine
-  })), /*#__PURE__*/React.createElement("span", {
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 11,
       color: "#999",
       letterSpacing: "0.1em"
     }
-  }, cards.length, " ITEMS")), /*#__PURE__*/React.createElement("div", {
+  }, cards.length, " ITEMS"), /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...S.btnSmall,
+      fontSize: 9,
+      letterSpacing: "0.1em"
+    },
+    onClick: () => selectMode ? exitSelectMode() : setSelectMode(true)
+  }, selectMode ? "CANCEL" : "SELECT"))), selectMode && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      marginBottom: 12,
+      padding: "10px 14px",
+      background: "#fafafa",
+      border: "1px solid #f0f0f0"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#666",
+      flex: 1
+    }
+  }, selected.size, "\u4EF6\u9078\u629E\u4E2D"), /*#__PURE__*/React.createElement("button", {
+    style: S.btnSmall,
+    onClick: selected.size === cards.length ? deselectAll : selectAll
+  }, selected.size === cards.length ? "ALL OFF" : "ALL ON"), !bulkConfirm ? /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...S.btnSmall,
+      background: selected.size > 0 ? "#c00" : "#ddd",
+      color: "#fff"
+    },
+    onClick: () => selected.size > 0 && setBulkConfirm(true)
+  }, "DELETE") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: "#c00"
+    }
+  }, "\u524A\u9664\u3059\u308B\uFF1F"), /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...S.btnSmall,
+      background: "#c00",
+      color: "#fff"
+    },
+    onClick: handleBulkDelete
+  }, "YES"), /*#__PURE__*/React.createElement("button", {
+    style: S.btnSmall,
+    onClick: () => setBulkConfirm(false)
+  }, "NO"))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
@@ -1726,16 +1808,36 @@ function List({
     }
   }, cards.map((card, i) => {
     const thumb = getFaceImg(card.images);
+    const isSelected = selected.has(card.id);
     return /*#__PURE__*/React.createElement("div", {
       key: card.id,
       style: {
         ...S.listCard,
-        animation: `slideUp .3s ease ${i * 0.03}s both`
+        animation: `slideUp .3s ease ${i * 0.03}s both`,
+        background: isSelected ? "#f5f5f5" : "#fff"
       },
-      onClick: () => setExpanded(expanded === card.id ? null : card.id)
+      onClick: () => selectMode ? toggleSelect(card.id) : setExpanded(expanded === card.id ? null : card.id)
     }, /*#__PURE__*/React.createElement("div", {
       style: S.listTop
-    }, thumb && /*#__PURE__*/React.createElement("img", {
+    }, selectMode && /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 24,
+        height: 24,
+        border: isSelected ? "none" : "1.5px solid #ccc",
+        background: isSelected ? "#1a1a1a" : "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        marginRight: 4
+      }
+    }, isSelected && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#fff",
+        fontSize: 14,
+        lineHeight: 1
+      }
+    }, "\u2713")), thumb && /*#__PURE__*/React.createElement("img", {
       src: thumb,
       alt: "",
       style: S.listThumb
@@ -1767,7 +1869,7 @@ function List({
       style: S.tag
     }, card.shape))), card.price > 0 && /*#__PURE__*/React.createElement("div", {
       style: S.listPrice
-    }, "\xA5", Number(card.price).toLocaleString())), expanded === card.id && /*#__PURE__*/React.createElement("div", {
+    }, "\xA5", Number(card.price).toLocaleString())), !selectMode && expanded === card.id && /*#__PURE__*/React.createElement("div", {
       style: S.listExpand
     }, card.images && card.images.length > 0 && /*#__PURE__*/React.createElement(ImageGallery, {
       images: card.images,
