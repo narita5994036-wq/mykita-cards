@@ -205,7 +205,7 @@ function App() {
   };
   const filteredCards = cards.filter(c => {
     const mc = filterCollection === "ALL" || c.collection === filterCollection;
-    const mt = filterType === "ALL" || c.frameType === filterType;
+    const mt = filterType === "ALL" || c.frameType === filterType || c.frameType === "BOTH";
     const ms = !searchText || [c.name, c.reading, c.features].some(f => (f || "").toLowerCase().includes(searchText.toLowerCase()));
     return mc && mt && ms;
   });
@@ -274,15 +274,39 @@ function App() {
           return;
         }
         const migrated = migrateCards(data.cards);
-        // Merge: add cards with new IDs to avoid duplicates
-        const existingNames = new Set(cards.map(c => c.name));
-        const newCards = migrated.filter(c => !existingNames.has(c.name));
-        const dupeCount = migrated.length - newCards.length;
+        // Build map of existing cards by name
+        const existingMap = {};
+        cards.forEach(c => {
+          existingMap[c.name] = c;
+        });
+        const newCards = [];
+        let mergedCount = 0;
+        const updatedExisting = [];
+        migrated.forEach(c => {
+          const existing = existingMap[c.name];
+          if (!existing) {
+            newCards.push(c);
+          } else if (c.frameType && existing.frameType && c.frameType !== existing.frameType && existing.frameType !== "BOTH") {
+            // Same name, different type -> merge to BOTH
+            updatedExisting.push({
+              ...existing,
+              frameType: "BOTH"
+            });
+            mergedCount++;
+          }
+        });
         const toAdd = newCards.map(c => ({
           ...c,
           id: Date.now().toString() + Math.random().toString(36).slice(2)
         }));
-        setCards(prev => [...prev, ...toAdd]);
+        setCards(prev => {
+          let updated = [...prev];
+          // Apply BOTH merges
+          updatedExisting.forEach(u => {
+            updated = updated.map(c => c.id === u.id ? u : c);
+          });
+          return [...updated, ...toAdd];
+        });
         // Merge custom collections
         if (data.customCollections) {
           setCustomCollections(prev => {
@@ -290,8 +314,12 @@ function App() {
             return [...all].filter(c => !INITIAL_COLLECTIONS.includes(c));
           });
         }
-        const msg = dupeCount > 0 ? `${toAdd.length}件追加（${dupeCount}件は重複のためスキップ）` : `${toAdd.length}件インポート完了`;
-        showToast(msg);
+        const dupeCount = migrated.length - newCards.length - mergedCount;
+        const parts = [];
+        if (toAdd.length > 0) parts.push(`${toAdd.length}件追加`);
+        if (mergedCount > 0) parts.push(`${mergedCount}件をBOTHに更新`);
+        if (dupeCount > 0) parts.push(`${dupeCount}件スキップ`);
+        showToast(parts.join("、") || "変更なし");
       } catch (e) {
         showToast("ファイルの読み込みに失敗しました");
       }
@@ -1422,7 +1450,7 @@ function Form({
       gap: 0,
       border: "1px solid #e0e0e0"
     }
-  }, ["OPTICAL", "SUN"].map(t => /*#__PURE__*/React.createElement("button", {
+  }, ["OPTICAL", "SUN", "BOTH"].map(t => /*#__PURE__*/React.createElement("button", {
     key: t,
     onClick: () => setFrameType(t),
     style: {
@@ -1730,8 +1758,8 @@ function List({
     }, card.frameType && /*#__PURE__*/React.createElement("span", {
       style: {
         ...S.tag,
-        background: card.frameType === "SUN" ? "#1a1a1a" : "#f7f7f7",
-        color: card.frameType === "SUN" ? "#fff" : "#999"
+        background: card.frameType === "SUN" ? "#1a1a1a" : card.frameType === "BOTH" ? "#666" : "#f7f7f7",
+        color: card.frameType === "SUN" || card.frameType === "BOTH" ? "#fff" : "#999"
       }
     }, card.frameType), /*#__PURE__*/React.createElement("span", {
       style: S.tag
