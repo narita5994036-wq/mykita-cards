@@ -1393,6 +1393,7 @@ function Form({
   const [price, setPrice] = useState(initial && initial.price || "");
   const [images, setImages] = useState(initial && initial.images || []);
   const [colors, setColors] = useState(initial && initial.colors || []);
+  const [discontinued, setDiscontinued] = useState(initial && initial.discontinued || false);
   const [newCol, setNewCol] = useState("");
   const [showNewCol, setShowNewCol] = useState(false);
   const submit = () => {
@@ -1407,7 +1408,8 @@ function Form({
       features: features.trim(),
       price: price ? Number(price) : 0,
       images,
-      colors
+      colors,
+      discontinued
     });
   };
   const handleAddCol = () => {
@@ -1470,7 +1472,22 @@ function Form({
       cursor: "pointer",
       fontFamily: "inherit"
     }
-  }, t)))), /*#__PURE__*/React.createElement("div", {
+  }, t)))), /*#__PURE__*/React.createElement(Field, {
+    label: "STATUS"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDiscontinued(!discontinued),
+    style: {
+      padding: "9px 16px",
+      border: "1px solid #e0e0e0",
+      background: discontinued ? "#c00" : "#fff",
+      color: discontinued ? "#fff" : "#bbb",
+      fontSize: 11,
+      fontWeight: 600,
+      letterSpacing: "0.14em",
+      cursor: "pointer",
+      fontFamily: "inherit"
+    }
+  }, discontinued ? "DISCONTINUED" : "IN STOCK")), /*#__PURE__*/React.createElement("div", {
     style: S.row
   }, /*#__PURE__*/React.createElement(Field, {
     label: "COLLECTION",
@@ -1863,7 +1880,13 @@ function List({
         background: card.frameType === "SUN" ? "#1a1a1a" : card.frameType === "BOTH" ? "#666" : "#f7f7f7",
         color: card.frameType === "SUN" || card.frameType === "BOTH" ? "#fff" : "#999"
       }
-    }, card.frameType), /*#__PURE__*/React.createElement("span", {
+    }, card.frameType), card.discontinued && /*#__PURE__*/React.createElement("span", {
+      style: {
+        ...S.tag,
+        background: "#c00",
+        color: "#fff"
+      }
+    }, "DISC."), /*#__PURE__*/React.createElement("span", {
       style: S.tag
     }, card.collection), /*#__PURE__*/React.createElement("span", {
       style: S.tag
